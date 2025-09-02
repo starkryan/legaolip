@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { deviceId: string } }
+  { params }: { params: Promise<{ deviceId: string }> }
 ) {
   try {
-    const { deviceId } = params;
+    const { deviceId } = await params;
     
     // Delete device from Supabase
     const { error } = await supabase

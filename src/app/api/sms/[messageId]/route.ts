@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
-    const { messageId } = params;
+    const { messageId } = await params;
     
     // Delete SMS message from Supabase
     const { error } = await supabase
