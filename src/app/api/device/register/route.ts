@@ -35,19 +35,40 @@ export async function POST(request: Request) {
       simSlotsString = '[]';
     }
     
-    // Insert or update device in Supabase
-    const { data, error } = await supabase
+    // First try to update the device if it exists
+    const { data: updateData, error: updateError } = await supabase
       .from('devices')
-      .upsert({
-        device_id: device.deviceId,
+      .update({
         phone_number: device.phoneNumber,
         sim_slots: simSlotsString,
         battery_level: device.batteryLevel,
         device_status: device.deviceStatus || 'online',
-        last_seen: device.lastSeen.toISOString(),
-        registered_at: device.registeredAt.toISOString()
+        last_seen: device.lastSeen.toISOString()
       })
+      .eq('device_id', device.deviceId)
       .select();
+    
+    let data = updateData;
+    let error = updateError;
+    
+    // If update didn't find any rows (device doesn't exist), insert new device
+    if (!error && updateData && updateData.length === 0) {
+      const { data: insertData, error: insertError } = await supabase
+        .from('devices')
+        .insert({
+          device_id: device.deviceId,
+          phone_number: device.phoneNumber,
+          sim_slots: simSlotsString,
+          battery_level: device.batteryLevel,
+          device_status: device.deviceStatus || 'online',
+          last_seen: device.lastSeen.toISOString(),
+          registered_at: device.registeredAt.toISOString()
+        })
+        .select();
+      
+      data = insertData;
+      error = insertError;
+    }
     
     if (error) {
       console.error('Supabase error details:', {
