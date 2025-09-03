@@ -32,3 +32,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
   }
 }
+
+// Yes mofo this will sent a heartbeat
