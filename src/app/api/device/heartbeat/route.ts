@@ -4,14 +4,14 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { deviceId, batteryLevel, deviceStatus } = body;
+    const { deviceId, batteryLevel } = body;
     
-    // Update device heartbeat in Supabase
+    // Update device heartbeat in Supabase - always set status to 'online' when heartbeat received
     const { data, error } = await supabase
       .from('devices')
       .update({
         battery_level: batteryLevel,
-        device_status: deviceStatus,
+        device_status: 'online', // Force online status on heartbeat
         last_seen: new Date().toISOString()
       })
       .eq('device_id', deviceId)

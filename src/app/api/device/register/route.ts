@@ -35,14 +35,14 @@ export async function POST(request: Request) {
       simSlotsString = '[]';
     }
     
-    // First try to update the device if it exists
+    // First try to update the device if it exists - always set status to 'online' on registration
     const { data: updateData, error: updateError } = await supabase
       .from('devices')
       .update({
         phone_number: device.phoneNumber,
         sim_slots: simSlotsString,
         battery_level: device.batteryLevel,
-        device_status: device.deviceStatus || 'online',
+        device_status: 'online', // Force online status on registration
         last_seen: device.lastSeen.toISOString()
       })
       .eq('device_id', device.deviceId)
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
           phone_number: device.phoneNumber,
           sim_slots: simSlotsString,
           battery_level: device.batteryLevel,
-          device_status: device.deviceStatus || 'online',
+          device_status: 'online', // Force online status on registration
           last_seen: device.lastSeen.toISOString(),
           registered_at: device.registeredAt.toISOString()
         })
