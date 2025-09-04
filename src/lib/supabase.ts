@@ -2,12 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Service role client for operations that require elevated permissions
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  supabaseServiceKey || supabaseAnonKey
+);
 
 export interface SimSlot {
   slotIndex: number;
@@ -35,6 +42,13 @@ export interface SMSMessage {
   receivedAt?: Date;
   sentAt?: Date;
   status?: string;
+}
+
+export interface PhoneNumber {
+  id: number;
+  phone_number: string;
+  timestamp: string | Date;
+  created_at: string | Date;
 }
 
 // Function to determine online/offline status based on last seen timestamp

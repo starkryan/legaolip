@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       .insert([
         {
           phone_number: phoneNumber,
-          timestamp: timestamp || new Date().toISOString(),
+          timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
           created_at: new Date().toISOString()
         }
       ])
