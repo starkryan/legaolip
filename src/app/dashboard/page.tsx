@@ -171,6 +171,31 @@ export default function GOIPDashboard() {
     return new Date(dateString).toLocaleString();
   };
 
+  // Function to format multiple phone numbers from device data
+  const formatPhoneNumbers = (device: Device) => {
+    const numbers: string[] = [];
+
+    // Add main phone number if available
+    if (device.phoneNumber && device.phoneNumber.trim() !== '') {
+      numbers.push(device.phoneNumber.trim());
+    }
+
+    // Add SIM slot phone numbers if available
+    if (Array.isArray(device.simSlots)) {
+      device.simSlots.forEach((slot) => {
+        if (slot.phoneNumber && slot.phoneNumber.trim() !== '') {
+          // Only add if not already in the list to avoid duplicates
+          if (!numbers.includes(slot.phoneNumber.trim())) {
+            numbers.push(slot.phoneNumber.trim());
+          }
+        }
+      });
+    }
+
+    // Return formatted string or 'Unknown' if no numbers found
+    return numbers.length > 0 ? numbers.join(', ') : 'Unknown';
+  };
+
   // Auto-refresh every 30 seconds
   useEffect(() => {
     refreshData();
@@ -244,8 +269,7 @@ export default function GOIPDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Device ID</TableHead>
-                  <TableHead>Phone Number</TableHead>
-                  <TableHead>SIM Slots</TableHead>
+                  <TableHead>Phone Numbers</TableHead>
                   <TableHead>Battery</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Seen</TableHead>
@@ -265,21 +289,8 @@ export default function GOIPDashboard() {
                       <TableCell className="font-medium">
                         {device.deviceId?.substring(0, 8) || 'Unknown'}
                       </TableCell>
-                      <TableCell>{device.phoneNumber || 'Unknown'}</TableCell>
-                      <TableCell>
-                        {Array.isArray(device.simSlots) ? (
-                          <div className="space-y-1">
-                            {device.simSlots.map((slot, index) => (
-                              <div key={index} className="text-xs bg-muted p-1 rounded">
-                                <div className="font-medium">Slot {slot.slotIndex + 1}</div>
-                                <div>{slot.carrierName}</div>
-                                <div className="text-muted-foreground">{slot.phoneNumber}</div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          device.simSlots || 0
-                        )}
+                      <TableCell className="font-mono text-sm">
+                        {formatPhoneNumbers(device)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
