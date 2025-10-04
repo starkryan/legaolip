@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { prisma } from '@/lib/prisma';
 
 export async function DELETE(
   request: Request,
@@ -8,20 +8,24 @@ export async function DELETE(
   try {
     const { deviceId } = await params;
     
-    // Delete device from Supabase
-    const { error } = await supabase
-      .from('devices')
-      .delete()
-      .eq('device_id', deviceId);
+    // Find the device first
+    const device = await prisma.device.findUnique({
+      where: { deviceId: deviceId }
+    });
     
-    if (error) {
-      console.error('Supabase error:', error);
-      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 });
+    if (!device) {
+      return NextResponse.json({ success: false, error: 'Device not found' }, { status: 404 });
     }
+    
+    // Delete device from database (this will cascade delete related records)
+    await prisma.device.delete({
+      where: { id: device.id }
+    });
     
     console.log(`Device deleted: ${deviceId}`);
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error deleting device:', error);
     return NextResponse.json({ success: false, error: 'Invalid request' }, { status: 400 });
   }
 }

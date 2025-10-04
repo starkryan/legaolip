@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { prisma } from '@/lib/prisma';
 
 export async function DELETE(
   request: Request,
@@ -8,20 +8,15 @@ export async function DELETE(
   try {
     const { messageId } = await params;
     
-    // Delete SMS message from Supabase
-    const { error } = await supabase
-      .from('sms_messages')
-      .delete()
-      .eq('id', parseInt(messageId));
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 });
-    }
+    // Delete SMS message from database
+    await prisma.smsMessage.delete({
+      where: { id: messageId }
+    });
     
     console.log(`SMS message deleted: ${messageId}`);
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error deleting SMS message:', error);
     return NextResponse.json({ success: false, error: 'Invalid request' }, { status: 400 });
   }
 }

@@ -6,7 +6,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarHeader, 
+  SidebarMenu, 
+  SidebarMenuItem, 
+  SidebarMenuButton,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarFooter
+} from '@/components/ui/sidebar';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { SMSModal } from '@/components/sms-modal';
+import { 
+  Trash2, 
+  Smartphone, 
+  MessageSquare, 
+  Activity, 
+  Settings, 
+  RefreshCw, 
+  Search,
+  Eye,
+  Wifi,
+  WifiOff,
+  Battery,
+  Clock
+} from 'lucide-react';
 
 interface SimSlot {
   slotIndex: number;
@@ -35,12 +65,24 @@ interface SMSMessage {
   receivedAt?: string;
   sentAt?: string;
   status?: string;
+  slotIndex?: number;
+  carrierName?: string;
+  slotInfo?: {
+    slotIndex: number;
+    carrierName: string;
+    phoneNumber: string;
+  };
 }
 
 export default function GOIPDashboard() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [smsMessages, setSmsMessages] = useState<SMSMessage[]>([]);
+  const [filteredMessages, setFilteredMessages] = useState<SMSMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMessage, setSelectedMessage] = useState<SMSMessage | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [stats, setStats] = useState({
     totalDevices: 0,
     onlineDevices: 0,
@@ -106,6 +148,17 @@ export default function GOIPDashboard() {
     }
   };
 
+  // Filter messages based on search term
+  useEffect(() => {
+    const filtered = smsMessages.filter(msg => 
+      msg.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.recipient?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      msg.deviceId?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredMessages(filtered);
+  }, [searchTerm, smsMessages]);
+
   const deleteDevice = async (deviceId: string) => {
     if (!confirm('Are you sure you want to delete this device?')) return;
     
@@ -115,9 +168,7 @@ export default function GOIPDashboard() {
       });
       
       if (response.ok) {
-        // Remove device from local state
         setDevices(prev => prev.filter(d => d.deviceId !== deviceId));
-        // Update stats
         setStats(prev => ({
           ...prev,
           totalDevices: prev.totalDevices - 1,
@@ -142,9 +193,7 @@ export default function GOIPDashboard() {
       });
       
       if (response.ok) {
-        // Remove message from local state
         setSmsMessages(prev => prev.filter(m => m.id !== messageId));
-        // Update stats
         setStats(prev => ({
           ...prev,
           totalSms: prev.totalSms - 1,
@@ -160,10 +209,9 @@ export default function GOIPDashboard() {
     }
   };
 
-  const getBatteryClass = (level: number) => {
-    if (level >= 70) return 'high';
-    if (level >= 30) return 'medium';
-    return 'low';
+  const openMessageModal = (message: SMSMessage) => {
+    setSelectedMessage(message);
+    setIsModalOpen(true);
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -171,29 +219,39 @@ export default function GOIPDashboard() {
     return new Date(dateString).toLocaleString();
   };
 
-  // Function to format multiple phone numbers from device data
-  const formatPhoneNumbers = (device: Device) => {
-    const numbers: string[] = [];
+  const formatTimeAgo = (dateString: string | undefined) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
 
-    // Add main phone number if available
-    if (device.phoneNumber && device.phoneNumber.trim() !== '') {
-      numbers.push(device.phoneNumber.trim());
+  // Function to format SIM slot information from device data
+  const formatSimSlots = (device: Device) => {
+    if (Array.isArray(device.simSlots) && device.simSlots.length > 0) {
+      return device.simSlots.map(slot => 
+        `SIM${slot.slotIndex}: ${slot.phoneNumber} (${slot.carrierName})`
+      ).join(' | ');
     }
+    return device.phoneNumber && device.phoneNumber.trim() !== '' 
+      ? device.phoneNumber.trim() 
+      : 'Unknown';
+  };
 
-    // Add SIM slot phone numbers if available
-    if (Array.isArray(device.simSlots)) {
-      device.simSlots.forEach((slot) => {
-        if (slot.phoneNumber && slot.phoneNumber.trim() !== '') {
-          // Only add if not already in the list to avoid duplicates
-          if (!numbers.includes(slot.phoneNumber.trim())) {
-            numbers.push(slot.phoneNumber.trim());
-          }
-        }
-      });
+  // Function to format SMS recipient with slot information
+  const formatSMSRecipient = (msg: SMSMessage) => {
+    if (msg.carrierName && msg.slotIndex !== undefined) {
+      return `${msg.recipient} (${msg.carrierName})`;
     }
-
-    // Return formatted string or 'Unknown' if no numbers found
-    return numbers.length > 0 ? numbers.join(', ') : 'Unknown';
+    return msg.recipient || 'Unknown';
   };
 
   // Auto-refresh every 30 seconds
@@ -204,177 +262,377 @@ export default function GOIPDashboard() {
   }, []);
 
   return (
-    <div className="container mx-auto p-6">
-      <header className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg mb-8">
-        <h1 className="text-3xl font-bold">GOIP SMS Dashboard</h1>
-        <p className="text-blue-100">Real-time monitoring of SMS devices and messages</p>
-      </header>
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader className="border-b">
+          <div className="flex items-center gap-2 px-2 py-1">
+            <Smartphone className="h-6 w-6" />
+            <span className="font-semibold">GOIP Dashboard</span>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                isActive={activeTab === 'overview'}
+                onClick={() => setActiveTab('overview')}
+              >
+                <Activity className="h-4 w-4" />
+                Overview
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                isActive={activeTab === 'devices'}
+                onClick={() => setActiveTab('devices')}
+              >
+                <Smartphone className="h-4 w-4" />
+                Devices
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                isActive={activeTab === 'messages'}
+                onClick={() => setActiveTab('messages')}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Messages
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Settings className="h-4 w-4" />
+                Settings
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="border-t">
+          <div className="p-2">
+            <ThemeToggle />
+          </div>
+        </SidebarFooter>
+      </Sidebar>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.totalDevices}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Online Devices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.onlineDevices}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total SMS</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.totalSms}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Received SMS</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.receivedSms}</div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
-        <Button 
-          onClick={refreshData} 
-          disabled={loading}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-        >
-          {loading ? 'Refreshing...' : 'Refresh Data'}
-        </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Connected Devices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Device ID</TableHead>
-                  <TableHead>Phone Numbers</TableHead>
-                  <TableHead>Battery</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Seen</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {devices.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      {loading ? 'Loading devices...' : 'No devices connected'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  devices.map((device) => (
-                    <TableRow key={device.deviceId}>
-                      <TableCell className="font-medium">
-                        {device.deviceId?.substring(0, 8) || 'Unknown'}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {formatPhoneNumbers(device)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={device.batteryLevel || 0} className="w-16" />
-                          <span className="text-sm">{device.batteryLevel !== undefined ? `${device.batteryLevel}%` : 'Unknown'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={device.isOnline ? 'default' : 'destructive'}>
-                          {device.isOnline ? 'online' : 'offline'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(device.lastSeen)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => deleteDevice(device.deviceId)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>SMS Messages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Device ID</TableHead>
-                  <TableHead>Sender</TableHead>
-                  <TableHead>Recipient</TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {smsMessages.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      {loading ? 'Loading messages...' : 'No messages'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  smsMessages.slice(-50).reverse().map((msg) => (
-                    <TableRow key={msg.id}>
-                      <TableCell className="font-medium">
-                        {msg.deviceId?.substring(0, 8) || 'Unknown'}
-                      </TableCell>
-                      <TableCell>{msg.sender || 'Unknown'}</TableCell>
-                      <TableCell>{msg.recipient || 'Unknown'}</TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {msg.message || ''}
-                      </TableCell>
-                      <TableCell>{formatDate(msg.timestamp || msg.receivedAt || msg.sentAt)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => deleteSms(msg.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <div className="flex items-center gap-2 flex-1">
+            <h1 className="text-lg font-semibold">Dashboard</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshData}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </header>
+
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          {/* Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalDevices}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Online Devices</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.onlineDevices}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total SMS</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalSms}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Received SMS</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.receivedSms}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="devices">Devices</TabsTrigger>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Smartphone className="h-5 w-5" />
+                      Recent Devices
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-64">
+                      <div className="space-y-3">
+                        {devices.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            {loading ? 'Loading devices...' : 'No devices connected'}
+                          </div>
+                        ) : (
+                          devices.slice(0, 5).map((device) => (
+                            <div key={device.deviceId} className="flex items-center justify-between p-3 rounded-lg border">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                  {device.isOnline ? (
+                                    <Wifi className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <WifiOff className="h-4 w-4 text-red-500" />
+                                  )}
+                                  <div>
+                                    <div className="font-medium text-sm font-mono">
+                                      {device.deviceId || 'Unknown'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {formatTimeAgo(device.lastSeen)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <Badge variant={device.isOnline ? 'default' : 'destructive'}>
+                                {device.isOnline ? 'online' : 'offline'}
+                              </Badge>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Recent Messages
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-64">
+                      <div className="space-y-3">
+                        {smsMessages.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            {loading ? 'Loading messages...' : 'No messages'}
+                          </div>
+                        ) : (
+                          smsMessages.slice(0, 5).reverse().map((msg) => (
+                            <div key={msg.id} className="flex items-center justify-between p-3 rounded-lg border">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm truncate">
+                                  {msg.sender || 'Unknown'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {formatSMSRecipient(msg)} • {formatTimeAgo(msg.timestamp || msg.receivedAt || msg.sentAt)}
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openMessageModal(msg)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="devices" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Connected Devices</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Device ID</TableHead>
+                        <TableHead>SIM Slots</TableHead>
+                        <TableHead>Battery</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Last Seen</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {devices.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            {loading ? 'Loading devices...' : 'No devices connected'}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        devices.map((device) => (
+                          <TableRow key={device.deviceId}>
+                            <TableCell className="font-medium font-mono">
+                              {device.deviceId || 'Unknown'}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {formatSimSlots(device)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Battery className="h-4 w-4" />
+                                <Progress value={device.batteryLevel || 0} className="w-16" />
+                                <span className="text-sm">{device.batteryLevel !== undefined ? `${device.batteryLevel}%` : 'Unknown'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={device.isOnline ? 'default' : 'destructive'}>
+                                {device.isOnline ? 'online' : 'offline'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{formatDate(device.lastSeen)}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => deleteDevice(device.deviceId)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="messages" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>SMS Messages</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search messages..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-8 w-64"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Device ID</TableHead>
+                        <TableHead>Sender</TableHead>
+                        <TableHead>Recipient (SIM)</TableHead>
+                        <TableHead>Message</TableHead>
+                        <TableHead>Timestamp</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMessages.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            {loading ? 'Loading messages...' : searchTerm ? 'No messages found' : 'No messages'}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredMessages.slice(-50).reverse().map((msg) => (
+                          <TableRow key={msg.id}>
+                            <TableCell className="font-medium font-mono">
+                              {msg.deviceId || 'Unknown'}
+                            </TableCell>
+                            <TableCell>{msg.sender || 'Unknown'}</TableCell>
+                            <TableCell>{formatSMSRecipient(msg)}</TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {msg.message || ''}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDate(msg.timestamp || msg.receivedAt || msg.sentAt)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openMessageModal(msg)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => deleteSms(msg.id)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </SidebarInset>
+
+      {/* SMS Modal */}
+      <SMSModal
+        message={selectedMessage}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedMessage(null);
+        }}
+      />
+    </SidebarProvider>
   );
 }

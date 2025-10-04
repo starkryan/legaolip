@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Better Auth required models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Application specific models
+model Device {
+  id            String   @id @default(cuid())
+  deviceId      String   @unique
+  phoneNumber   String?
+  simSlots      Json?
+  batteryLevel  Int?
+  deviceStatus  String   @default("offline")
+  lastSeen      DateTime
+  registeredAt  DateTime @default(now())
+  
+  // Relations
+  smsMessages   SmsMessage[]
+  phoneNumbers  PhoneNumber[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("devices")
+}
+
+model PhoneNumber {
+  id            String   @id @default(cuid())
+  deviceId      String
+  phoneNumber   String
+  slotIndex     Int?
+  carrierName   String?
+  operatorName  String?
+  signalStatus  String?
+  
+  // Relations
+  device        Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([deviceId, phoneNumber])
+  @@map("phone_numbers")
+}
+
+model SmsMessage {
+  id          String   @id @default(cuid())
+  deviceId    String
+  sender      String?
+  recipient   String?
+  message     String
+  timestamp   DateTime?
+  receivedAt  DateTime?
+  sentAt      DateTime?
+  status      String?
+  slotIndex   Int?     // SIM slot that received this message
+  
+  // Relations
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("sms_messages")
+}

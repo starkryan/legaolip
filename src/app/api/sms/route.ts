@@ -1,34 +1,51 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Fetch all SMS messages from Supabase
-    const { data, error } = await supabase
-      .from('sms_messages')
-      .select('*')
-      .order('received_at', { ascending: false });
+    // Fetch all SMS messages from database with device and slot info
+    const messages = await prisma.smsMessage.findMany({
+      orderBy: {
+        receivedAt: 'desc'
+      },
+      include: {
+        device: {
+          select: {
+            deviceId: true,
+            simSlots: true
+          }
+        }
+      }
+    });
     
-    if (error) {
-      console.error('Supabase error:', error);
-      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 });
-    }
+    // Transform the data to match the expected format with enhanced slot info
+    const transformedMessages = messages.map((message: any) => {
+      // Get carrier info for the slot if available
+      const carrierInfo = message.slotIndex !== null && Array.isArray(message.device.simSlots) 
+        ? message.device.simSlots.find((slot: any) => slot.slotIndex === message.slotIndex)
+        : null;
+      
+      const carrierName = carrierInfo?.carrierName || `SIM${message.slotIndex || 0}`;
+      
+      return {
+        id: message.id,
+        deviceId: message.device.deviceId,
+        sender: message.sender,
+        recipient: message.recipient,
+        message: message.message,
+        timestamp: message.timestamp,
+        receivedAt: message.receivedAt,
+        sentAt: message.sentAt,
+        status: message.status,
+        slotIndex: message.slotIndex,
+        carrierName: carrierName,
+        slotInfo: carrierInfo
+      };
+    });
     
-    // Transform the data to match the expected format
-    const messages = data.map((row: any) => ({
-      id: row.id,
-      deviceId: row.device_id,
-      sender: row.sender,
-      recipient: row.recipient,
-      message: row.message,
-      timestamp: row.timestamp ? new Date(row.timestamp) : undefined,
-      receivedAt: row.received_at ? new Date(row.received_at) : undefined,
-      sentAt: row.sent_at ? new Date(row.sent_at) : undefined,
-      status: row.status
-    }));
-    
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: transformedMessages });
   } catch (error) {
+    console.error('Error fetching SMS messages:', error);
     return NextResponse.json({ success: false, error: 'Failed to retrieve SMS messages' }, { status: 500 });
   }
 }

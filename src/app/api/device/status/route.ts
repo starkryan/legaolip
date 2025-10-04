@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
-import { supabase, getDeviceStatus } from '@/lib/supabase';
+import { prisma } from '@/lib/prisma';
+
+// Function to determine online/offline status based on last seen timestamp
+function getDeviceStatus(lastSeen: Date | string): { status: string; lastSeen: Date } {
+  const lastSeenDate = typeof lastSeen === 'string' ? new Date(lastSeen) : lastSeen;
+  const now = new Date();
+  const diffInMinutes = (now.getTime() - lastSeenDate.getTime()) / (1000 * 60);
+  
+  return {
+    status: diffInMinutes <= 2 ? 'online' : 'offline', // Consider online if last seen within 2 minutes
+    lastSeen: lastSeenDate
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -13,15 +25,15 @@ export async function GET(request: Request) {
       );
     }
     
-    // Fetch device from Supabase
-    const { data, error } = await supabase
-      .from('devices')
-      .select('*')
-      .eq('device_id', deviceId)
-      .single();
+    // Fetch device from database
+    const device = await prisma.device.findUnique({
+      where: { deviceId: deviceId },
+      include: {
+        phoneNumbers: true
+      }
+    });
     
-    if (error) {
-      console.error('Supabase error:', error);
+    if (!device) {
       return NextResponse.json(
         { success: false, error: 'Device not found' },
         { status: 404 }
@@ -29,16 +41,16 @@ export async function GET(request: Request) {
     }
     
     // Determine online/offline status
-    const statusInfo = getDeviceStatus(data.last_seen);
+    const statusInfo = getDeviceStatus(device.lastSeen);
     
     const deviceWithStatus = {
-      deviceId: data.device_id,
-      phoneNumber: data.phone_number,
-      simSlots: data.sim_slots ? JSON.parse(data.sim_slots) : data.sim_slots,
-      batteryLevel: data.battery_level,
+      deviceId: device.deviceId,
+      phoneNumber: device.phoneNumber,
+      simSlots: device.simSlots,
+      batteryLevel: device.batteryLevel,
       deviceStatus: statusInfo.status,
       lastSeen: statusInfo.lastSeen,
-      registeredAt: new Date(data.registered_at),
+      registeredAt: device.registeredAt,
       calculatedStatus: statusInfo.status
     };
     

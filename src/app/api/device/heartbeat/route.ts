@@ -1,34 +1,33 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { deviceId, batteryLevel } = body;
     
-    // Update device heartbeat in Supabase - always set status to 'online' when heartbeat received
-    const { data, error } = await supabase
-      .from('devices')
-      .update({
-        battery_level: batteryLevel,
-        device_status: 'online', // Force online status on heartbeat
-        last_seen: new Date().toISOString()
-      })
-      .eq('device_id', deviceId)
-      .select();
+    // Find the device first
+    const device = await prisma.device.findUnique({
+      where: { deviceId: deviceId }
+    });
     
-    if (error) {
-      console.error('Supabase error:', error);
-      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 });
-    }
-    
-    // If no rows were updated, the device might not exist
-    if (data && data.length === 0) {
+    if (!device) {
       return NextResponse.json({ success: false, error: 'Device not found' }, { status: 404 });
     }
     
+    // Update device heartbeat in database - always set status to 'online' when heartbeat received
+    await prisma.device.update({
+      where: { id: device.id },
+      data: {
+        batteryLevel: batteryLevel,
+        deviceStatus: 'online', // Force online status on heartbeat
+        lastSeen: new Date()
+      }
+    });
+    
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error updating device heartbeat:', error);
     return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
   }
 }
