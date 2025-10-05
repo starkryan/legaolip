@@ -6,6 +6,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { deviceId, batteryLevel } = body;
     
+    if (!deviceId) {
+      return NextResponse.json({ success: false, error: 'deviceId is required' }, { status: 400 });
+    }
+    
     // Find the device first
     const device = await prisma.device.findUnique({
       where: { deviceId: deviceId }
@@ -19,7 +23,7 @@ export async function POST(request: Request) {
     await prisma.device.update({
       where: { id: device.id },
       data: {
-        batteryLevel: batteryLevel,
+        batteryLevel: batteryLevel !== undefined ? batteryLevel : device.batteryLevel,
         deviceStatus: 'online', // Force online status on heartbeat
         lastSeen: new Date()
       }
@@ -28,7 +32,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating device heartbeat:', error);
-    return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
