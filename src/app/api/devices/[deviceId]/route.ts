@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { connectDB } from '@/lib/db';
+import { Device, PhoneNumber, SmsMessage } from '@/models';
 
 export async function DELETE(
   request: Request,
@@ -7,21 +8,24 @@ export async function DELETE(
 ) {
   try {
     const { deviceId } = await params;
-    
+
+    // Ensure database connection
+    await connectDB();
+
     // Find the device first
-    const device = await prisma.device.findUnique({
-      where: { deviceId: deviceId }
-    });
-    
+    const device = await Device.findOne({ deviceId });
+
     if (!device) {
       return NextResponse.json({ success: false, error: 'Device not found' }, { status: 404 });
     }
-    
-    // Delete device from database (this will cascade delete related records)
-    await prisma.device.delete({
-      where: { id: device.id }
-    });
-    
+
+    // Delete related records first (manual cascade)
+    await PhoneNumber.deleteMany({ deviceId: device._id });
+    await SmsMessage.deleteMany({ deviceId: device._id });
+
+    // Delete device from database
+    await Device.findByIdAndDelete(device._id);
+
     console.log(`Device deleted: ${deviceId}`);
     return NextResponse.json({ success: true });
   } catch (error) {

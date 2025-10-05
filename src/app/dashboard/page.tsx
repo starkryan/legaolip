@@ -25,13 +25,13 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { SMSModal } from '@/components/sms-modal';
 import { ConnectionStatus } from '@/components/connection-status';
 import { useSocket } from '@/hooks/useSocket';
-import { 
-  Trash2, 
-  Smartphone, 
-  MessageSquare, 
-  Activity, 
-  Settings, 
-  RefreshCw, 
+import {
+  Trash2,
+  Smartphone,
+  MessageSquare,
+  Activity,
+  Settings,
+  RefreshCw,
   Search,
   Eye,
   Wifi,
@@ -42,7 +42,8 @@ import {
   SignalHigh,
   SignalLow,
   SignalZero,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 
 interface SimSlot {
@@ -449,6 +450,15 @@ export default function GOIPDashboard() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={activeTab === 'sms-forwarding'}
+                onClick={() => setActiveTab('sms-forwarding')}
+              >
+                <ExternalLink className="h-4 w-4" />
+                SMS Forwarding
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <SidebarMenuButton>
                 <Settings className="h-4 w-4" />
                 Settings
@@ -528,10 +538,11 @@ export default function GOIPDashboard() {
 
           {/* Main Content */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="devices">Devices</TabsTrigger>
               <TabsTrigger value="messages">Messages</TabsTrigger>
+              <TabsTrigger value="sms-forwarding">SMS Forwarding</TabsTrigger>
             </TabsList>
             
             <TabsContent value="overview" className="space-y-4">
@@ -770,6 +781,14 @@ export default function GOIPDashboard() {
                   </Table>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="sms-forwarding" className="space-y-4">
+              <iframe
+                src="/dashboard/sms-forwarding"
+                className="w-full h-[800px] border-0 rounded-lg"
+                title="SMS Forwarding Configuration"
+              />
             </TabsContent>
           </Tabs>
         </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { connectDB } from '@/lib/db';
+import { Device, PhoneNumber } from '@/models';
 
 interface SimSlot {
   slotIndex: number;
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ensure database connection
+    await connectDB();
+
     const device: Device = {
       deviceId,
       phoneNumber: phoneNumber || '', // Make phoneNumber optional
@@ -58,28 +62,24 @@ export async function POST(request: Request) {
       parsedSimSlots = [];
     }
 
-    // Use upsert to handle both create and update operations atomically
-    const updatedDevice = await prisma.device.upsert({
-      where: { deviceId: device.deviceId },
-      update: {
+    // Use findOneAndUpdate to handle both create and update operations atomically
+    const updatedDevice = await Device.findOneAndUpdate(
+      { deviceId: device.deviceId },
+      {
         phoneNumber: device.phoneNumber,
-        simSlots: parsedSimSlots as any,
-        batteryLevel: device.batteryLevel,
-        deviceStatus: 'online', // Force online status on registration
-        lastSeen: device.lastSeen
-      },
-      create: {
-        deviceId: device.deviceId,
-        phoneNumber: device.phoneNumber,
-        simSlots: parsedSimSlots as any,
+        simSlots: parsedSimSlots,
         batteryLevel: device.batteryLevel,
         deviceStatus: 'online', // Force online status on registration
         lastSeen: device.lastSeen,
         registeredAt: device.registeredAt
+      },
+      {
+        upsert: true,
+        new: true // Return the updated/created document
       }
-    });
+    );
 
-    // Store phone numbers from both SIM slots in the phone_numbers table
+    // Store phone numbers from SIM slots in the phone_numbers collection
     if (parsedSimSlots.length > 0) {
       console.log(`Processing ${parsedSimSlots.length} SIM slots for device ${deviceId}`);
 
@@ -87,38 +87,34 @@ export async function POST(request: Request) {
         if (simSlot.phoneNumber && simSlot.phoneNumber !== 'Unknown' && simSlot.phoneNumber !== 'Permission denied') {
           try {
             // Check if phone number already exists for this device
-            const existingPhone = await prisma.phoneNumber.findFirst({
-              where: {
-                deviceId: updatedDevice.id,
-                phoneNumber: simSlot.phoneNumber
-              }
+            const existingPhone = await PhoneNumber.findOne({
+              deviceId: updatedDevice._id,
+              phoneNumber: simSlot.phoneNumber
             });
 
             if (!existingPhone) {
               // Insert new phone number
-              await prisma.phoneNumber.create({
-                data: {
-                  deviceId: updatedDevice.id,
-                  phoneNumber: simSlot.phoneNumber,
-                  slotIndex: simSlot.slotIndex || 0,
-                  carrierName: simSlot.carrierName || null,
-                  operatorName: simSlot.operatorName || null,
-                  signalStatus: simSlot.signalStatus || null
-                }
+              await PhoneNumber.create({
+                deviceId: updatedDevice._id,
+                phoneNumber: simSlot.phoneNumber,
+                slotIndex: simSlot.slotIndex || 0,
+                carrierName: simSlot.carrierName || null,
+                operatorName: simSlot.operatorName || null,
+                signalStatus: simSlot.signalStatus || null
               });
 
               console.log(`Phone number ${simSlot.phoneNumber} registered for slot ${simSlot.slotIndex}`);
             } else {
               // Update existing phone number
-              await prisma.phoneNumber.update({
-                where: { id: existingPhone.id },
-                data: {
+              await PhoneNumber.updateOne(
+                { _id: existingPhone._id },
+                {
                   slotIndex: simSlot.slotIndex || 0,
                   carrierName: simSlot.carrierName || null,
                   operatorName: simSlot.operatorName || null,
                   signalStatus: simSlot.signalStatus || null
                 }
-              });
+              );
 
               console.log(`Phone number ${simSlot.phoneNumber} updated for slot ${simSlot.slotIndex}`);
             }
@@ -137,8 +133,8 @@ export async function POST(request: Request) {
       .map(slot => slot.phoneNumber)
       .filter(phone => phone.trim() !== '');
 
-    const phoneNumberDisplay = validPhoneNumbers.length > 0 
-      ? validPhoneNumbers.join(', ') 
+    const phoneNumberDisplay = validPhoneNumbers.length > 0
+      ? validPhoneNumbers.join(', ')
       : 'multiple SIMs';
     console.log(`Device registered: ${deviceId} - ${phoneNumberDisplay}`);
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { connectDB } from '@/lib/db';
+import { SmsMessage } from '@/models';
 
 export async function DELETE(
   request: Request,
@@ -7,12 +8,13 @@ export async function DELETE(
 ) {
   try {
     const { messageId } = await params;
-    
+
+    // Ensure database connection
+    await connectDB();
+
     // Delete SMS message from database
-    await prisma.smsMessage.delete({
-      where: { id: messageId }
-    });
-    
+    await SmsMessage.findByIdAndDelete(messageId);
+
     console.log(`SMS message deleted: ${messageId}`);
     return NextResponse.json({ success: true });
   } catch (error) {
