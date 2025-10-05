@@ -321,13 +321,21 @@ export default function GOIPDashboard() {
 
   // Socket event handlers
   const handleDeviceHeartbeat = useCallback((deviceData: any) => {
+    console.log('Received device heartbeat:', deviceData);
     setDevices(prev => {
       const existingIndex = prev.findIndex(d => d.deviceId === deviceData.deviceId);
       if (existingIndex >= 0) {
         const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], ...deviceData };
+        updated[existingIndex] = { 
+          ...updated[existingIndex], 
+          ...deviceData,
+          // Ensure simSlots is properly formatted
+          simSlots: deviceData.simSlots || deviceData.phoneNumbers || updated[existingIndex].simSlots
+        };
+        console.log('Updated device:', updated[existingIndex]);
         return updated;
       } else {
+        console.log('Added new device:', deviceData);
         return [...prev, deviceData];
       }
     });
@@ -362,7 +370,9 @@ export default function GOIPDashboard() {
 
   // Initialize socket connection and event listeners
   useEffect(() => {
+    console.log('Socket connection status:', socket.connected, socket.error);
     if (socket.connected) {
+      console.log('Socket is connected, joining dashboard room...');
       socket.joinDashboard();
       
       // Set up event listeners
@@ -370,14 +380,19 @@ export default function GOIPDashboard() {
       socket.onSmsReceived(handleSmsReceived);
       socket.onDeviceStatusChange(handleDeviceStatusChange);
       socket.onStatsUpdate(handleStatsUpdate);
+      
+      console.log('Socket event listeners registered');
 
       return () => {
+        console.log('Cleaning up socket event listeners...');
         // Cleanup event listeners
         socket.offDeviceHeartbeat(handleDeviceHeartbeat);
         socket.offSmsReceived(handleSmsReceived);
         socket.offDeviceStatusChange(handleDeviceStatusChange);
         socket.offStatsUpdate(handleStatsUpdate);
       };
+    } else {
+      console.log('Socket not connected, current status:', { connected: socket.connected, error: socket.error });
     }
   }, [socket.connected, socket, handleDeviceHeartbeat, handleSmsReceived, handleDeviceStatusChange, handleStatsUpdate]);
 
