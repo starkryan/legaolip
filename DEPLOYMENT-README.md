@@ -2,7 +2,7 @@
 
 ## Database Configuration for Supabase
 
-The application has been configured to work with Supabase's transaction pooler for Vercel deployment. Here's how to set it up properly:
+The application has been configured to work with Supabase's transaction pooler for Vercel deployment using the latest Prisma driver adapter approach. Here's how to set it up properly:
 
 ### Environment Variables
 
@@ -10,11 +10,11 @@ You need to set these environment variables in your Vercel project:
 
 #### 1. Database URLs
 ```bash
-# Primary database connection (for migrations and direct queries)
-DATABASE_URL=postgresql://postgres.kshpbvbbphpdilhmpozk:Lauda@979892@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+# Connect to Supabase via connection pooling with Supavisor (transaction pooler)
+DATABASE_URL=postgres://postgres.kshpbvbbphpdilhmpozk:Lauda@979892@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
 
-# Transaction pooler URL (for serverless functions)
-DIRECT_URL=postgresql://postgres.kshpbvbbphpdilhmpozk:Lauda@979892@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+# Direct connection to the database used for migrations
+DIRECT_URL=postgresql://postgres.kshpbvbbphpdilhmpozk:Lauda@979892@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
 ```
 
 #### 2. Authentication
@@ -30,10 +30,53 @@ NEXTAUTH_SECRET=your-nextauth-secret
 
 The configuration uses:
 
-- **Port 5432**: Direct connection for database operations
-- **Port 6543**: Transaction pooler for serverless functions
+- **Port 6543**: Transaction pooler with `pgbouncer=true` for application queries
+- **Port 5432**: Direct connection for database migrations
 
 This setup resolves the "prepared statement does not exist" errors that occur when using connection poolers with Prisma.
+
+### Technical Solution Implemented
+
+The application now uses Prisma's **driver adapter** approach for serverless environments:
+
+#### 1. Prisma Schema Configuration
+```prisma
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"  # Uses JavaScript engine instead of Rust
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")      # Transaction pooler
+  directUrl = env("DIRECT_URL")        # Direct connection for migrations
+}
+```
+
+#### 2. Prisma Client with Driver Adapter
+```typescript
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+})
+
+export const prisma = new PrismaClient({
+  adapter,  // PostgreSQL driver adapter
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  transactionOptions: {
+    timeout: 10000,
+    maxWait: 5000,
+  },
+})
+```
+
+#### 3. Key Benefits
+- **No Rust Binaries**: Reduces bundle size and deployment complexity
+- **Driver Adapter**: Native PostgreSQL connection handling
+- **Transaction Pooler Compatible**: Works seamlessly with Supabase's pooler
+- **Serverless Optimized**: Perfect for Vercel's serverless functions
 
 ### Deployment Steps
 

@@ -1,28 +1,17 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Create a custom database URL that disables prepared statements
-const createDatabaseUrl = () => {
-  const baseUrl = process.env.DATABASE_URL;
-  if (!baseUrl) return baseUrl;
-  
-  // Add parameters to disable prepared statements and optimize for pooler
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}prepare=false&connection_limit=1&pool_timeout=10`;
-}
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+})
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  datasources: {
-    db: {
-      url: createDatabaseUrl(),
-    },
-  },
-  // Configure for Supabase transaction pooler
+  adapter,
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  // Add connection timeout configuration
   transactionOptions: {
     timeout: 10000,
     maxWait: 5000,
