@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Fetch all SMS messages from database with device and slot info
+    // Fetch all SMS messages from database with device and phone number info
     const messages = await prisma.smsMessage.findMany({
       orderBy: {
         receivedAt: 'desc'
@@ -12,7 +12,8 @@ export async function GET() {
         device: {
           select: {
             deviceId: true,
-            simSlots: true
+            simSlots: true,
+            phoneNumbers: true
           }
         }
       }
@@ -20,10 +21,23 @@ export async function GET() {
     
     // Transform the data to match the expected format with enhanced slot info
     const transformedMessages = messages.map((message: any) => {
-      // Get carrier info for the slot if available
-      const carrierInfo = message.slotIndex !== null && Array.isArray(message.device.simSlots) 
+      // Get carrier info from device simSlots first
+      let carrierInfo = message.slotIndex !== null && Array.isArray(message.device.simSlots) 
         ? message.device.simSlots.find((slot: any) => slot.slotIndex === message.slotIndex)
         : null;
+      
+      // If not found in simSlots, try to get from phoneNumbers table
+      if (!carrierInfo && message.slotIndex !== null) {
+        const phoneNumberInfo = message.device.phoneNumbers.find((pn: any) => pn.slotIndex === message.slotIndex);
+        if (phoneNumberInfo) {
+          carrierInfo = {
+            slotIndex: phoneNumberInfo.slotIndex,
+            carrierName: phoneNumberInfo.carrierName,
+            phoneNumber: phoneNumberInfo.phoneNumber,
+            signalStatus: phoneNumberInfo.signalStatus
+          };
+        }
+      }
       
       const carrierName = carrierInfo?.carrierName || `SIM${message.slotIndex || 0}`;
       

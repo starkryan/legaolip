@@ -38,10 +38,24 @@ export async function GET() {
       const phoneNumbers = device.phoneNumbers.map((pn: any) => pn.phoneNumber).filter((pn: string) => pn && pn.trim() !== '');
       const combinedPhoneNumbers = phoneNumbers.length > 0 ? phoneNumbers.join(', ') : '';
       
+      // Create SIM slots data from phoneNumbers table if simSlots is not available or is just a number
+      let simSlotsData = device.simSlots;
+      
+      // If simSlots is not an array or is just a number, create it from phoneNumbers
+      if (!Array.isArray(simSlotsData) || typeof simSlotsData === 'number') {
+        simSlotsData = device.phoneNumbers.map((pn: any) => ({
+          slotIndex: pn.slotIndex || 0,
+          carrierName: pn.carrierName || 'Unknown',
+          phoneNumber: pn.phoneNumber || '',
+          operatorName: pn.operatorName || undefined,
+          signalStatus: pn.signalStatus || undefined
+        }));
+      }
+      
       return {
         deviceId: device.deviceId,
         phoneNumber: combinedPhoneNumbers, // Use combined phone numbers from phoneNumbers table
-        simSlots: device.simSlots,
+        simSlots: simSlotsData, // Use the enhanced SIM slots data with signal information
         batteryLevel: device.batteryLevel,
         deviceStatus: device.deviceStatus,
         lastSeen: device.lastSeen,

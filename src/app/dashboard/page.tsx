@@ -35,13 +35,19 @@ import {
   Wifi,
   WifiOff,
   Battery,
-  Clock
+  Clock,
+  Signal,
+  SignalHigh,
+  SignalLow,
+  SignalZero,
+  AlertCircle
 } from 'lucide-react';
 
 interface SimSlot {
   slotIndex: number;
   carrierName: string;
   phoneNumber: string;
+  signalStatus?: string;
 }
 
 interface Device {
@@ -234,6 +240,34 @@ export default function GOIPDashboard() {
     return `${diffDays}d ago`;
   };
 
+  // Function to get signal icon and color based on signal status
+  const getSignalIcon = (signalStatus?: string) => {
+    if (!signalStatus || signalStatus === 'null' || signalStatus === 'Unknown') {
+      return <SignalZero className="h-4 w-4 text-gray-400" />;
+    }
+    
+    const signalLower = signalStatus.toLowerCase();
+    if (signalLower.includes('excellent') || signalLower.includes('great') || signalLower.includes('4') || signalLower.includes('5')) {
+      return <SignalHigh className="h-4 w-4 text-green-500" />;
+    } else if (signalLower.includes('good') || signalLower.includes('3')) {
+      return <Signal className="h-4 w-4 text-blue-500" />;
+    } else if (signalLower.includes('poor') || signalLower.includes('weak') || signalLower.includes('1') || signalLower.includes('2')) {
+      return <SignalLow className="h-4 w-4 text-orange-500" />;
+    } else if (signalLower.includes('none') || signalLower.includes('0')) {
+      return <SignalZero className="h-4 w-4 text-red-500" />;
+    } else {
+      return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  // Function to format signal status text
+  const formatSignalStatus = (signalStatus?: string) => {
+    if (!signalStatus || signalStatus === 'null' || signalStatus === 'Unknown') {
+      return 'No Signal';
+    }
+    return signalStatus;
+  };
+
   // Function to format SIM slot information from device data
   const formatSimSlots = (device: Device) => {
     if (Array.isArray(device.simSlots) && device.simSlots.length > 0) {
@@ -244,6 +278,34 @@ export default function GOIPDashboard() {
     return device.phoneNumber && device.phoneNumber.trim() !== '' 
       ? device.phoneNumber.trim() 
       : 'Unknown';
+  };
+
+  // Function to format SIM slot details with signal information
+  const formatSimSlotsWithSignal = (device: Device) => {
+    if (Array.isArray(device.simSlots) && device.simSlots.length > 0) {
+      return device.simSlots.map(slot => (
+        <div key={slot.slotIndex} className="flex items-center gap-2 text-sm">
+          {getSignalIcon(slot.signalStatus)}
+          <span className="font-mono">
+            SIM{slot.slotIndex}: {slot.phoneNumber} ({slot.carrierName})
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {formatSignalStatus(slot.signalStatus)}
+          </span>
+        </div>
+      ));
+    }
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <SignalZero className="h-4 w-4 text-gray-400" />
+        <span className="font-mono">
+          {device.phoneNumber && device.phoneNumber.trim() !== '' 
+            ? device.phoneNumber.trim() 
+            : 'Unknown'}
+        </span>
+        <span className="text-xs text-muted-foreground">No Signal Info</span>
+      </div>
+    );
   };
 
   // Function to format SMS recipient with slot information
@@ -503,8 +565,8 @@ export default function GOIPDashboard() {
                             <TableCell className="font-medium font-mono">
                               {device.deviceId || 'Unknown'}
                             </TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {formatSimSlots(device)}
+                            <TableCell>
+                              {formatSimSlotsWithSignal(device)}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
