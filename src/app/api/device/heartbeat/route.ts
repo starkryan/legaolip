@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSocketIO } from '@/lib/socket';
 
 interface SimSlot {
   slotIndex: number;
@@ -132,6 +133,66 @@ export async function POST(request: Request) {
         console.error('Error synchronizing phone numbers:', phoneError);
         // Don't fail the heartbeat if phone number sync fails
       }
+    }
+
+    // Emit real-time updates via Socket.IO
+    try {
+      const io = getSocketIO();
+      if (io) {
+        // Get updated device data for broadcasting
+        const updatedDevice = await prisma.device.findUnique({
+          where: { deviceId: deviceId },
+          include: {
+            phoneNumbers: true
+          }
+        });
+
+        if (updatedDevice) {
+          const deviceData = {
+            deviceId: updatedDevice.deviceId,
+            batteryLevel: updatedDevice.batteryLevel,
+            deviceStatus: updatedDevice.deviceStatus,
+            lastSeen: updatedDevice.lastSeen,
+            simSlots: updatedDevice.simSlots,
+            phoneNumbers: updatedDevice.phoneNumbers,
+            isOnline: updatedDevice.deviceStatus === 'online'
+          };
+
+          // Emit to device-specific room
+          io.to(`device-${deviceId}`).emit('device-heartbeat', deviceData);
+          
+          // Emit to dashboard for global updates
+          io.to('dashboard').emit('device-heartbeat', deviceData);
+
+          // Emit device status change if status changed
+          const previousStatus = device.deviceStatus;
+          const currentStatus = updatedDevice.deviceStatus;
+          if (previousStatus !== currentStatus) {
+            io.to('dashboard').emit('device-status-change', {
+              deviceId: updatedDevice.deviceId,
+              previousStatus,
+              currentStatus,
+              isOnline: currentStatus === 'online'
+            });
+          }
+
+          // Update and broadcast stats
+          const totalDevices = await prisma.device.count();
+          const onlineDevices = await prisma.device.count({
+            where: { deviceStatus: 'online' }
+          });
+          
+          io.to('dashboard').emit('stats-update', {
+            totalDevices,
+            onlineDevices,
+            deviceId: updatedDevice.deviceId,
+            timestamp: new Date()
+          });
+        }
+      }
+    } catch (socketError) {
+      console.error('Error emitting socket events:', socketError);
+      // Don't fail the heartbeat if socket emission fails
     }
     
     return NextResponse.json({ 

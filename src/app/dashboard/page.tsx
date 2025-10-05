@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SMSModal } from '@/components/sms-modal';
+import { ConnectionStatus } from '@/components/connection-status';
+import { useSocket } from '@/hooks/useSocket';
 import { 
   Trash2, 
   Smartphone, 
@@ -97,6 +99,7 @@ export default function GOIPDashboard() {
   });
 
   const API_BASE = '/api';
+  const socket = useSocket();
 
   const refreshData = async () => {
     if (loading) return;
@@ -316,12 +319,81 @@ export default function GOIPDashboard() {
     return msg.recipient || 'Unknown';
   };
 
-  // Auto-refresh every 30 seconds
+  // Socket event handlers
+  const handleDeviceHeartbeat = useCallback((deviceData: any) => {
+    setDevices(prev => {
+      const existingIndex = prev.findIndex(d => d.deviceId === deviceData.deviceId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], ...deviceData };
+        return updated;
+      } else {
+        return [...prev, deviceData];
+      }
+    });
+  }, []);
+
+  const handleSmsReceived = useCallback((smsData: any) => {
+    setSmsMessages(prev => [smsData, ...prev]);
+    setStats(prev => ({
+      ...prev,
+      totalSms: prev.totalSms + 1,
+      receivedSms: prev.receivedSms + 1
+    }));
+  }, []);
+
+  const handleDeviceStatusChange = useCallback((statusData: any) => {
+    setDevices(prev => prev.map(device => 
+      device.deviceId === statusData.deviceId 
+        ? { ...device, ...statusData }
+        : device
+    ));
+  }, []);
+
+  const handleStatsUpdate = useCallback((statsData: any) => {
+    setStats(prev => ({
+      ...prev,
+      totalDevices: statsData.totalDevices ?? prev.totalDevices,
+      onlineDevices: statsData.onlineDevices ?? prev.onlineDevices,
+      totalSms: statsData.totalSms ?? prev.totalSms,
+      receivedSms: statsData.receivedSms ?? prev.receivedSms
+    }));
+  }, []);
+
+  // Initialize socket connection and event listeners
+  useEffect(() => {
+    if (socket.connected) {
+      socket.joinDashboard();
+      
+      // Set up event listeners
+      socket.onDeviceHeartbeat(handleDeviceHeartbeat);
+      socket.onSmsReceived(handleSmsReceived);
+      socket.onDeviceStatusChange(handleDeviceStatusChange);
+      socket.onStatsUpdate(handleStatsUpdate);
+
+      return () => {
+        // Cleanup event listeners
+        socket.offDeviceHeartbeat(handleDeviceHeartbeat);
+        socket.offSmsReceived(handleSmsReceived);
+        socket.offDeviceStatusChange(handleDeviceStatusChange);
+        socket.offStatsUpdate(handleStatsUpdate);
+      };
+    }
+  }, [socket.connected, socket, handleDeviceHeartbeat, handleSmsReceived, handleDeviceStatusChange, handleStatsUpdate]);
+
+  // Initial data load and fallback polling
   useEffect(() => {
     refreshData();
-    const interval = setInterval(refreshData, 30000);
+    
+    // Fallback polling every 30 seconds in case socket disconnects
+    const interval = setInterval(() => {
+      if (!socket.connected) {
+        refreshData();
+      }
+    }, 30000);
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [socket.connected]);
 
   return (
     <SidebarProvider>
@@ -381,11 +453,13 @@ export default function GOIPDashboard() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex items-center gap-2 flex-1">
             <h1 className="text-lg font-semibold">Dashboard</h1>
+            <ConnectionStatus />
             <Button
               variant="outline"
               size="sm"
               onClick={refreshData}
               disabled={loading}
+              title={socket.connected ? "Manual refresh" : "Socket disconnected - using polling"}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
