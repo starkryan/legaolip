@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const device = await Device.findOne({ deviceId }).lean();
 
     // Find phone numbers for this device separately
-    const phoneNumbers = device ? await PhoneNumber.find({ deviceId: device._id }).lean() : [];
+    const phoneNumbers = device ? await PhoneNumber.find({ deviceId: (device as any)._id }).lean() : [];
 
     if (!device) {
       return NextResponse.json({ success: false, error: 'Device not found' }, { status: 404 });
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     // Insert SMS message into database with slot information
     const smsMessage = await SmsMessage.create({
-      deviceId: device._id,
+      deviceId: (device as any)._id,
       sender: sender,
       message: message,
       recipient: recipientPhoneNumber,
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     });
 
     // Get carrier name for the slot if available
-    const simSlots = device.simSlots as any[];
+    const simSlots = (device as any).simSlots as any[];
     const carrierInfo = recipientSlotIndex !== null && Array.isArray(simSlots)
       ? simSlots.find((slot: any) => slot.slotIndex === recipientSlotIndex)
       : null;
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       const smsData = {
         _id: smsMessage._id,
         id: smsMessage._id,
-        deviceId: device._id,
+        deviceId: (device as any)._id,
         sender: sender,
         recipient: recipientPhoneNumber,
         message: message,
@@ -91,8 +91,8 @@ export async function POST(request: Request) {
       if (io) {
         const smsData = {
           id: smsMessage._id,
-          deviceId: device._id,
-          deviceIdStr: device.deviceId,
+          deviceId: (device as any)._id,
+          deviceIdStr: (device as any).deviceId,
           sender: sender,
           recipient: recipientPhoneNumber,
           message: message,
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
           totalSms,
           receivedSms,
           type: 'sms',
-          deviceId: device.deviceId,
+          deviceId: (device as any).deviceId,
           timestamp: new Date()
         });
       }

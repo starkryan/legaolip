@@ -35,10 +35,10 @@ export async function GET() {
 
         if (phoneNumberInfo) {
           carrierInfo = {
-            slotIndex: phoneNumberInfo.slotIndex,
-            carrierName: phoneNumberInfo.carrierName,
-            phoneNumber: phoneNumberInfo.phoneNumber,
-            signalStatus: phoneNumberInfo.signalStatus
+            slotIndex: (phoneNumberInfo as any).slotIndex,
+            carrierName: (phoneNumberInfo as any).carrierName,
+            phoneNumber: (phoneNumberInfo as any).phoneNumber,
+            signalStatus: (phoneNumberInfo as any).signalStatus
           };
         }
       }

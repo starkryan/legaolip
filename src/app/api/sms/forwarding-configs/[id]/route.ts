@@ -98,7 +98,7 @@ export async function PUT(
       { new: true }
     ).lean();
 
-    console.log(`SMS forwarding config updated: ${updatedConfig?.name}`);
+    console.log(`SMS forwarding config updated: ${(updatedConfig as any)?.name}`);
 
     return NextResponse.json({
       success: true,

@@ -12,7 +12,7 @@ export const config = {
   },
 };
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     let raw = await req.text(); // Instead of 'on data', use await req.text()
 
@@ -157,7 +157,7 @@ export async function POST(req) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('❌ Failed to parse SMS:', err.message);
+    console.error('❌ Failed to parse SMS:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Parse error' }, {
       status: 400,
       headers: { 'Content-Type': 'application/json' },

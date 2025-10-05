@@ -71,7 +71,7 @@ export default function SmsForwardingPage() {
     isActive: true,
     deviceIds: [] as string[],
     phoneNumbers: [] as string[],
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' } as Record<string, string>,
     retryCount: 3,
     retryDelay: 5,
     timeout: 30
@@ -182,7 +182,7 @@ export default function SmsForwardingPage() {
       isActive: config.isActive,
       deviceIds: config.deviceIds || [],
       phoneNumbers: config.phoneNumbers || [],
-      headers: config.headers || { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...config.headers },
       retryCount: config.retryCount,
       retryDelay: config.retryDelay,
       timeout: config.timeout

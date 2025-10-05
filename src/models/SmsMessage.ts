@@ -1,4 +1,4 @@
-import { Schema, model, Document, Types, mongoose } from 'mongoose';
+import mongoose, { Schema, model, Document, Types,  } from 'mongoose';
 
 // Interface for SmsMessage document
 export interface ISmsMessage extends Document {

@@ -108,7 +108,7 @@ function getPortStatus(device: DeviceWithPhoneNumbers, portIndex: number): numbe
   }
 
   // Check battery level
-  if (device.batteryLevel !== null && device.batteryLevel < 5) {
+  if (device.batteryLevel !== null && device.batteryLevel !== undefined && device.batteryLevel < 5) {
     return 2; // Ready but low battery
   }
 
@@ -223,7 +223,7 @@ export function transformDeviceToSkyline(device: DeviceWithPhoneNumbers): Skylin
 
 // Transform multiple devices into a single Skyline gateway with dynamic port generation
 export function transformDevicesToSkyline(devices: DeviceWithPhoneNumbers[]): SkylineDeviceStatus {
-  const allPhoneNumbers: Array<{phoneNumber: PhoneNumber; deviceId: string}> = [];
+  const allPhoneNumbers: Array<{phoneNumber: any; deviceId: string}> = [];
 
   // Collect all phone numbers from all devices
   for (const device of devices) {
@@ -350,7 +350,7 @@ export function findDeviceByPort(portNumber: string, devices: DeviceWithPhoneNum
   return devices.find(device => device.deviceId === parsed.deviceId) || null;
 }
 
-export function findPhoneNumbersByPort(portNumber: string, devices: DeviceWithPhoneNumbers[]): PhoneNumber[] {
+export function findPhoneNumbersByPort(portNumber: string, devices: DeviceWithPhoneNumbers[]): any[] {
   const parsed = parsePortNumber(portNumber);
   if (!parsed) return [];
 

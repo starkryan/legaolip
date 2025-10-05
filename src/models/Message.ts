@@ -1,4 +1,4 @@
-import { Schema, model, Document, mongoose } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose';
 import { connectDB } from '@/lib/db';
 
 // Define the interface for the Message document

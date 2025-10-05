@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     }
 
     // Store the SMS in our local database as well for tracking
-    if (result.success && !result.batch) {
+    if (result.success && !('batch' in result && result.batch)) {
       try {
         await connectDB();
         const parsedSMS = await parseSMSWithDeviceContext(raw);
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: result.success,
       message: result.success
-        ? (result.batch
+        ? (('batch' in result && result.batch)
           ? `Processed ${result.stats.total} messages with ${result.stats.successful} successes`
           : 'SMS forwarded successfully')
         : 'SMS forwarding failed',
@@ -196,10 +196,10 @@ export async function GET() {
       success: true,
       stats: {
         totalMessages: recentMessages.length,
-        uniqueDevices: new Set(recentMessages.map(m => (m.deviceId as any)?.deviceId).filter(Boolean)).size,
+        uniqueDevices: new Set(recentMessages.map((m: any) => (m.deviceId as any)?.deviceId).filter(Boolean)).size,
         timeRange: 'Last 24 hours'
       },
-      recentMessages: recentMessages.map(msg => {
+      recentMessages: recentMessages.map((msg: any) => {
         const device = msg.deviceId as any;
         return {
           id: msg._id,

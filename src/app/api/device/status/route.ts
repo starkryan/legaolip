@@ -40,16 +40,16 @@ export async function GET(request: Request) {
     }
 
     // Determine online/offline status
-    const statusInfo = getDeviceStatus(device.lastSeen);
+    const statusInfo = getDeviceStatus((device as any).lastSeen);
 
     const deviceWithStatus = {
-      deviceId: device.deviceId,
-      phoneNumber: device.phoneNumber,
-      simSlots: device.simSlots,
-      batteryLevel: device.batteryLevel,
+      deviceId: (device as any).deviceId,
+      phoneNumber: (device as any).phoneNumber,
+      simSlots: (device as any).simSlots,
+      batteryLevel: (device as any).batteryLevel,
       deviceStatus: statusInfo.status,
       lastSeen: statusInfo.lastSeen,
-      registeredAt: device.registeredAt,
+      registeredAt: (device as any).registeredAt,
       calculatedStatus: statusInfo.status
     };
 

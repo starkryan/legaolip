@@ -30,13 +30,13 @@ export async function GET(request: Request) {
       }
 
       // Fetch phone numbers for this device
-      const phoneNumbers = await PhoneNumber.find({ deviceId: device._id }).lean();
+      const phoneNumbers = await PhoneNumber.find({ deviceId: (device as any)._id }).lean();
 
       const deviceWithPhoneNumbers = {
         ...device,
         phoneNumbers,
-        id: device._id.toString()
-      };
+        id: (device as any)._id.toString()
+      } as any;
 
       const skylineData = transformDeviceToSkyline(deviceWithPhoneNumbers);
       console.log(`✅ Transformed device ${deviceId} to Skyline format with ${skylineData.status.length} ports`);
@@ -63,13 +63,13 @@ export async function GET(request: Request) {
       }
 
       // Fetch phone numbers for all devices
-      const deviceIds = devices.map(d => d._id);
+      const deviceIds = devices.map((d: any) => d._id);
       const phoneNumbers = await PhoneNumber.find({
         deviceId: { $in: deviceIds }
       }).lean();
 
       // Group phone numbers by device
-      const phoneNumbersByDevice = phoneNumbers.reduce((acc, pn) => {
+      const phoneNumbersByDevice = phoneNumbers.reduce((acc: any, pn: any) => {
         const deviceId = pn.deviceId.toString();
         if (!acc[deviceId]) {
           acc[deviceId] = [];
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       const devicesWithPhoneNumbers = devices.map((device: any) => ({
         ...device,
         phoneNumbers: phoneNumbersByDevice[device._id.toString()] || [],
-        id: device._id.toString()
+        id: (device as any)._id.toString()
       }));
 
       const skylineData = transformDevicesToSkyline(devicesWithPhoneNumbers);
@@ -131,21 +131,21 @@ export async function POST(request: Request) {
     // Update last seen time if force refresh is requested
     if (forceRefresh) {
       await Device.updateOne(
-        { _id: device._id },
+        { _id: (device as any)._id },
         { lastSeen: new Date() }
       );
       console.log(`🔄 Updated last seen time for device: ${deviceId}`);
-      device.lastSeen = new Date();
+      (device as any).lastSeen = new Date();
     }
 
     // Fetch phone numbers for this device
-    const phoneNumbers = await PhoneNumber.find({ deviceId: device._id }).lean();
+    const phoneNumbers = await PhoneNumber.find({ deviceId: (device as any)._id }).lean();
 
     const deviceWithPhoneNumbers = {
       ...device,
       phoneNumbers,
-      id: device._id.toString()
-    };
+      id: (device as any)._id.toString()
+    } as any;
 
     const skylineData = transformDeviceToSkyline(deviceWithPhoneNumbers);
     console.log(`✅ Transformed device ${deviceId} to Skyline format with ${skylineData.status.length} ports`);

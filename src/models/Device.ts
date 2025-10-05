@@ -1,4 +1,4 @@
-import { Schema, model, Document, mongoose } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose';
 
 // Interface for Device document
 export interface IDevice extends Document {

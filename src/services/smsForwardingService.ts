@@ -24,7 +24,7 @@ export async function forwardSms(smsData: any, deviceInfo?: any): Promise<void> 
     await connectDB();
 
     // Find active forwarding configurations
-    const configs = await SmsForwardingConfig.findActive();
+    const configs = await SmsForwardingConfig.find({ isActive: true });
 
     if (configs.length === 0) {
       console.log('ℹ️ No active SMS forwarding configurations found');
@@ -162,15 +162,28 @@ export async function getForwardingStats() {
   try {
     await connectDB();
 
-    const stats = await SmsForwardingConfig.getStats();
-    const result = stats[0];
+    const totalConfigs = await SmsForwardingConfig.countDocuments();
+    const activeConfigs = await SmsForwardingConfig.countDocuments({ isActive: true });
+
+    // Aggregate success/failure counts
+    const successStats = await SmsForwardingConfig.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalSuccesses: { $sum: '$successCount' },
+          totalFailures: { $sum: '$failureCount' }
+        }
+      }
+    ]);
+
+    const result = successStats[0] || { totalSuccesses: 0, totalFailures: 0 };
 
     return {
-      totalConfigs: result?.totalConfigs || 0,
-      activeConfigs: result?.activeConfigs || 0,
-      totalSuccesses: result?.totalSuccesses || 0,
-      totalFailures: result?.totalFailures || 0,
-      successRate: result?.totalSuccesses && result?.totalFailures
+      totalConfigs,
+      activeConfigs,
+      totalSuccesses: result.totalSuccesses || 0,
+      totalFailures: result.totalFailures || 0,
+      successRate: result.totalSuccesses && result.totalFailures
         ? ((result.totalSuccesses / (result.totalSuccesses + result.totalFailures)) * 100).toFixed(1)
         : '0.0'
     };

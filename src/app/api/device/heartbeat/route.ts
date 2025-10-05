@@ -78,21 +78,21 @@ export async function POST(request: Request) {
           }));
 
         // Find phone numbers to remove (exist in DB but not in new SIM slots)
-        const phoneNumbersToRemove = currentPhoneNumbers.filter(dbPhone =>
-          !newPhoneNumbers.find(newPhone => newPhone.phoneNumber === dbPhone.phoneNumber)
+        const phoneNumbersToRemove = currentPhoneNumbers.filter((dbPhone: any) =>
+          !newPhoneNumbers.find((newPhone: any) => newPhone.phoneNumber === dbPhone.phoneNumber)
         );
 
         // Remove old phone numbers
         if (phoneNumbersToRemove.length > 0) {
           await PhoneNumber.deleteMany({
-            _id: { $in: phoneNumbersToRemove.map(p => p._id) }
+            _id: { $in: phoneNumbersToRemove.map((p: any) => p._id) }
           });
           console.log(`Removed ${phoneNumbersToRemove.length} old phone numbers for device ${deviceId}`);
         }
 
         // Update or insert new phone numbers
         for (const newPhone of newPhoneNumbers) {
-          const existingPhone = currentPhoneNumbers.find(dbPhone =>
+          const existingPhone = currentPhoneNumbers.find((dbPhone: any) =>
             dbPhone.phoneNumber === newPhone.phoneNumber
           );
 

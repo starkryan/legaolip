@@ -32,13 +32,13 @@ export async function GET() {
     }
 
     // Fetch phone numbers for all devices
-    const deviceIds = devices.map(d => d._id);
+    const deviceIds = devices.map((d: any) => d._id);
     const phoneNumbers = await PhoneNumber.find({
       deviceId: { $in: deviceIds }
     }).lean();
 
     // Group phone numbers by device
-    const phoneNumbersByDevice = phoneNumbers.reduce((acc, pn) => {
+    const phoneNumbersByDevice = phoneNumbers.reduce((acc: any, pn: any) => {
       const deviceId = pn.deviceId.toString();
       if (!acc[deviceId]) {
         acc[deviceId] = [];
