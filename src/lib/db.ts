@@ -12,6 +12,19 @@ export async function connectDB(): Promise<typeof mongoose> {
     return mongoose;
   }
 
+  // If connection is in progress, wait for it
+  if (mongoose.connection.readyState === 2) {
+    console.log('MongoDB connection already in progress, waiting...');
+    return new Promise((resolve, reject) => {
+      mongoose.connection.once('connected', () => {
+        isConnected = true;
+        resolve(mongoose);
+      });
+      mongoose.connection.once('error', reject);
+      setTimeout(() => reject(new Error('Connection timeout')), 10000);
+    });
+  }
+
   try {
     console.log('Attempting to connect to MongoDB:', MONGODB_URI);
 
@@ -20,7 +33,7 @@ export async function connectDB(): Promise<typeof mongoose> {
       maxPoolSize: 10, // Connection pool size
       serverSelectionTimeoutMS: 5000, // How long to try selecting a server
       socketTimeoutMS: 45000, // How long a send or receive on a socket can take
-      bufferCommands: false, // Disable mongoose buffering
+      bufferCommands: true, // Enable mongoose buffering to prevent timing issues
     });
 
     isConnected = true;
