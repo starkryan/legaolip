@@ -275,20 +275,34 @@ export default function GOIPDashboard() {
   // Function to format SIM slot information from device data
   const formatSimSlots = (device: Device) => {
     if (Array.isArray(device.simSlots) && device.simSlots.length > 0) {
-      return device.simSlots.map(slot => 
+      // Deduplicate SIM slots based on slotIndex and phoneNumber
+      const uniqueSlots = device.simSlots.filter((slot, index, self) =>
+        index === self.findIndex((s) =>
+          s.slotIndex === slot.slotIndex && s.phoneNumber === slot.phoneNumber
+        )
+      );
+
+      return uniqueSlots.map(slot =>
         `SIM${slot.slotIndex}: ${slot.phoneNumber} (${slot.carrierName})`
       ).join(' | ');
     }
-    return device.phoneNumber && device.phoneNumber.trim() !== '' 
-      ? device.phoneNumber.trim() 
+    return device.phoneNumber && device.phoneNumber.trim() !== ''
+      ? device.phoneNumber.trim()
       : 'Unknown';
   };
 
   // Function to format SIM slot details with signal information
   const formatSimSlotsWithSignal = (device: Device) => {
     if (Array.isArray(device.simSlots) && device.simSlots.length > 0) {
-      return device.simSlots.map(slot => (
-        <div key={slot.slotIndex} className="flex items-center gap-2 text-sm">
+      // Deduplicate SIM slots based on slotIndex and phoneNumber
+      const uniqueSlots = device.simSlots.filter((slot, index, self) =>
+        index === self.findIndex((s) =>
+          s.slotIndex === slot.slotIndex && s.phoneNumber === slot.phoneNumber
+        )
+      );
+
+      return uniqueSlots.map((slot, index) => (
+        <div key={`${slot.slotIndex}-${slot.phoneNumber || ''}-${index}`} className="flex items-center gap-2 text-sm">
           {getSignalIcon(slot.signalStatus)}
           <span className="font-mono">
             SIM{slot.slotIndex}: {slot.phoneNumber} ({slot.carrierName})
@@ -613,7 +627,10 @@ export default function GOIPDashboard() {
                                 <div className="font-medium text-sm truncate">
                                   {msg.sender || 'Unknown'}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-sm text-muted-foreground mt-1 line-clamp-2 break-words" title={msg.message || ''}>
+                                  {msg.message || ''}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
                                   {formatSMSRecipient(msg)} • {formatTimeAgo(msg.timestamp || msg.receivedAt || msg.sentAt)}
                                 </div>
                               </div>
@@ -621,7 +638,7 @@ export default function GOIPDashboard() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openMessageModal(msg)}
-                                className="h-8 w-8 p-0"
+                                className="h-8 w-8 p-0 flex-shrink-0 ml-2"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -745,8 +762,12 @@ export default function GOIPDashboard() {
                             </TableCell>
                             <TableCell>{msg.sender || 'Unknown'}</TableCell>
                             <TableCell>{formatSMSRecipient(msg)}</TableCell>
-                            <TableCell className="max-w-xs truncate">
-                              {msg.message || ''}
+                            <TableCell className="max-w-md">
+                              <div className="max-w-md">
+                                <p className="text-sm break-words line-clamp-3" title={msg.message || ''}>
+                                  {msg.message || ''}
+                                </p>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">

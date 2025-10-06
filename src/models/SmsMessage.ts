@@ -36,7 +36,8 @@ const SmsMessageSchema = new Schema<ISmsMessage>({
   message: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 2000 // Support long SMS messages (up to ~10 SMS concatenated)
   },
   timestamp: {
     type: Date,
