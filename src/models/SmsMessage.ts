@@ -53,7 +53,7 @@ const SmsMessageSchema = new Schema<ISmsMessage>({
   },
   status: {
     type: String,
-    enum: ['pending', 'sent', 'delivered', 'failed'],
+    enum: ['pending', 'sent', 'delivered', 'failed', 'received'],
     default: 'pending',
     index: true
   },
@@ -90,8 +90,10 @@ SmsMessageSchema.pre('save', function(next) {
   }
 
   // Set status based on dates
-  if (this.sentAt) {
-    this.status = this.status === 'pending' ? 'sent' : this.status;
+  if (this.receivedAt && !this.sentAt) {
+    this.status = this.status === 'pending' ? 'received' : this.status;
+  } else if (this.sentAt) {
+    this.status = this.status === 'pending' || this.status === 'received' ? 'sent' : this.status;
   }
 
   next();
