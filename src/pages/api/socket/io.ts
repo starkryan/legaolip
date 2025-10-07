@@ -163,7 +163,9 @@ export default function SocketHandler(req: NextApiRequest, res: NextApiResponse 
       }
     });
 
-    // Handle SMS receive
+    // SMS receive functionality disabled - using REST API endpoints instead
+    // This prevents duplicate SMS entries from multiple handlers
+    /*
     socket.on('sms:receive', async (data: any) => {
       try {
         console.log('SMS received via Socket.IO:', data);
@@ -243,6 +245,7 @@ export default function SocketHandler(req: NextApiRequest, res: NextApiResponse 
         });
       }
     });
+    */
 
     // Handle SMS sent confirmation
     socket.on('sms:sent', async (data: any) => {
