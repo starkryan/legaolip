@@ -2,15 +2,12 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { SmsForwardingConfig } from '@/models';
 
-// POST - Test a forwarding configuration
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { testMessage = 'Test message from GOIP SMS Forwarder' } = body;
 
     await connectDB();
 
@@ -19,44 +16,45 @@ export async function POST(
     if (!config) {
       return NextResponse.json({
         success: false,
-        error: 'Forwarding configuration not found'
+        message: 'Forwarding configuration not found'
       }, { status: 404 });
     }
 
-    if (!config.isActive) {
-      return NextResponse.json({
-        success: false,
-        error: 'Forwarding configuration is not active'
-      }, { status: 400 });
-    }
-
-    // Prepare test payload
-    const testPayload = {
-      id: `test_${Date.now()}`,
+    // Create test SMS data
+    const testSmsData = {
+      id: 'test-' + Date.now(),
       deviceId: 'test-device',
+      deviceIdStr: 'test-device',
       sender: '+1234567890',
       recipient: '+0987654321',
-      message: testMessage,
+      message: 'This is a test SMS message for webhook testing.',
       timestamp: new Date().toISOString(),
       receivedAt: new Date().toISOString(),
       slotIndex: 0,
       carrierName: 'Test Carrier',
+      slotInfo: {
+        slotIndex: 0,
+        carrierName: 'Test Carrier',
+        phoneNumber: '+0987654321'
+      },
       test: true
     };
 
-    // Make test request
+    // Test the webhook
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), config.timeout * 1000);
+    const timeoutId = setTimeout(() => controller.abort(), (config as any).timeout * 1000);
 
     try {
-      const response = await fetch(config.url, {
+      const response = await fetch((config as any).url, {
         method: 'POST',
-        headers: Object.fromEntries(config.headers),
-        body: JSON.stringify(testPayload),
+        headers: Object.fromEntries((config as any).headers || new Map()),
+        body: JSON.stringify(testSmsData),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
+
+      const responseText = await response.text();
 
       // Update statistics
       if (response.ok) {
@@ -64,59 +62,47 @@ export async function POST(
           $inc: { successCount: 1 },
           lastUsed: new Date()
         });
-
-        console.log(`✅ Test successful for config: ${config.name}`);
-
-        return NextResponse.json({
-          success: true,
-          message: 'Test sent successfully',
-          response: {
-            status: response.status,
-            statusText: response.statusText
-          },
-          payload: testPayload
-        });
       } else {
         await SmsForwardingConfig.findByIdAndUpdate(id, {
           $inc: { failureCount: 1 },
           lastUsed: new Date()
         });
-
-        const errorText = await response.text();
-        console.error(`❌ Test failed for config ${config.name}:`, errorText);
-
-        return NextResponse.json({
-          success: false,
-          message: 'Test request failed',
-          response: {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText
-          }
-        });
       }
-    } catch (error) {
+
+      return NextResponse.json({
+        success: true,
+        message: 'Test completed',
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          body: responseText
+        },
+        testSmsData
+      });
+
+    } catch (webhookError) {
       clearTimeout(timeoutId);
 
+      // Update failure statistics
       await SmsForwardingConfig.findByIdAndUpdate(id, {
         $inc: { failureCount: 1 },
         lastUsed: new Date()
       });
 
-      console.error(`❌ Test error for config ${config.name}:`, error);
-
       return NextResponse.json({
         success: false,
-        message: 'Test request failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        message: 'Webhook test failed',
+        error: webhookError instanceof Error ? webhookError.message : 'Unknown error',
+        testSmsData
       });
     }
+
   } catch (error) {
     console.error('Error testing forwarding config:', error);
     return NextResponse.json({
       success: false,
-      error: 'Failed to test forwarding configuration',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Failed to test forwarding configuration',
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }

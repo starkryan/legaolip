@@ -21,8 +21,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Copy,
-  Send
+  Copy
 } from 'lucide-react';
 
 interface ForwardingConfig {
@@ -51,7 +50,7 @@ interface ForwardingStats {
   successRate: string;
 }
 
-export default function SmsForwardingPage() {
+export default function SmsForwardingTab() {
   const [configs, setConfigs] = useState<ForwardingConfig[]>([]);
   const [stats, setStats] = useState<ForwardingStats>({
     totalConfigs: 0,
@@ -301,69 +300,6 @@ export default function SmsForwardingPage() {
     return ((successes / total) * 100).toFixed(1);
   };
 
-  // Forward latest SMS to specific URL
-  const forwardLatestSms = async (forwardingUrl: string) => {
-    try {
-      const response = await fetch('/api/goip/forward-latest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ forwardingUrl }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert(`Latest SMS forwarded successfully!\n\nTo: ${forwardingUrl}\nMessage: ${data.smsData.message}`);
-        await loadConfigs();
-        await loadStats();
-      } else {
-        alert(`Forwarding failed: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error forwarding latest SMS:', error);
-      alert('Failed to forward latest SMS');
-    }
-  };
-
-  // Forward latest SMS to all active configurations
-  const forwardLatestToAllActive = async () => {
-    const activeConfigs = configs.filter(config => config.isActive);
-
-    if (activeConfigs.length === 0) {
-      alert('No active forwarding configurations found!');
-      return;
-    }
-
-    if (!confirm(`Forward latest SMS to ${activeConfigs.length} active configuration(s)?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/goip/forward-latest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert(`Latest SMS retrieved successfully!\n\nMessage: ${data.smsData.message}\n\nThis SMS will be automatically forwarded to all active configurations.`);
-        await loadConfigs();
-        await loadStats();
-      } else {
-        alert(`Failed to retrieve latest SMS: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error forwarding latest SMS:', error);
-      alert('Failed to forward latest SMS');
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -419,41 +355,7 @@ export default function SmsForwardingPage() {
         </Card>
       </div>
 
-      {/* Manual SMS Forwarding Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Manual SMS Forwarding</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <Button
-              onClick={forwardLatestToAllActive}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Forward Latest SMS to All Active
-            </Button>
-
-            {configs.filter(config => config.isActive).map((config) => (
-              <Button
-                key={config._id}
-                variant="outline"
-                onClick={() => forwardLatestSms(config.url)}
-                className="flex items-center gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Forward to {config.name}
-              </Button>
-            ))}
-          </div>
-
-          {configs.filter(config => config.isActive).length === 0 && (
-            <p className="text-muted-foreground text-sm mt-4">
-              No active forwarding configurations found. Create and activate a configuration to enable manual forwarding.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      
 
       {/* Main Content */}
       <Card>
@@ -695,16 +597,6 @@ export default function SmsForwardingPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => forwardLatestSms(config.url)}
-                          disabled={!config.isActive}
-                          className="h-8 w-8 p-0"
-                          title={config.isActive ? "Forward latest SMS now" : "Configuration is inactive"}
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="outline"
                           size="sm"

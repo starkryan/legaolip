@@ -25,6 +25,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { SMSModal } from '@/components/sms-modal';
 import { ConnectionStatus } from '@/components/connection-status';
 import { useSocket } from '@/hooks/useSocket';
+import SmsForwardingTab from '@/components/sms-forwarding-tab';
 import {
   Trash2,
   Smartphone,
@@ -805,11 +806,7 @@ export default function GOIPDashboard() {
             </TabsContent>
 
             <TabsContent value="sms-forwarding" className="space-y-4">
-              <iframe
-                src="/dashboard/sms-forwarding"
-                className="w-full h-[800px] border-0 rounded-lg"
-                title="SMS Forwarding Configuration"
-              />
+              <SmsForwardingTab />
             </TabsContent>
           </Tabs>
         </div>
