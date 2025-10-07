@@ -3,7 +3,7 @@ module.exports = {
     name: 'goip-server',
     script: 'npm',
     args: 'start',
-    cwd: '/var/www/goip/goip-fullstack',
+    cwd: '/var/www/goip',
     env: {
       NODE_ENV: 'production',
       PORT: 3000,
