@@ -26,6 +26,8 @@ import { SMSModal } from '@/components/sms-modal';
 import { ConnectionStatus } from '@/components/connection-status';
 import { useSocket } from '@/hooks/useSocket';
 import SmsForwardingTab from '@/components/sms-forwarding-tab';
+import { AuthWrapper } from '@/components/auth-wrapper';
+import { signOut } from '@/lib/auth-client';
 import {
   Trash2,
   Smartphone,
@@ -44,7 +46,8 @@ import {
   SignalLow,
   SignalZero,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  LogOut
 } from 'lucide-react';
 
 interface SimSlot {
@@ -335,6 +338,17 @@ export default function GOIPDashboard() {
     return msg.recipient || 'Unknown';
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still redirect even if logout fails
+      window.location.href = '/login';
+    }
+  };
+
   // Socket event handlers
   const handleDeviceHeartbeat = useCallback((deviceData: any) => {
     console.log('Received device heartbeat:', deviceData);
@@ -427,8 +441,9 @@ export default function GOIPDashboard() {
   }, [socket.connected]);
 
   return (
-    <SidebarProvider>
-      <Sidebar>
+    <AuthWrapper>
+      <SidebarProvider>
+        <Sidebar>
         <SidebarHeader className="border-b">
           <div className="flex items-center gap-2 px-2 py-1">
             <Smartphone className="h-6 w-6" />
@@ -477,6 +492,12 @@ export default function GOIPDashboard() {
               <SidebarMenuButton>
                 <Settings className="h-4 w-4" />
                 Settings
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+                Logout
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -822,5 +843,6 @@ export default function GOIPDashboard() {
         }}
       />
     </SidebarProvider>
+    </AuthWrapper>
   );
 }

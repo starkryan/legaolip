@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Smartphone, LogIn } from 'lucide-react';
+import { signIn } from '@/lib/auth-client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -22,25 +23,10 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Store auth token or session
-        localStorage.setItem('authToken', data.token);
-        router.push('/dashboard');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Login failed');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      await signIn(email, password);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -110,16 +96,16 @@ export default function LoginPage() {
                 </>
               )}
             </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Don't have an account?{' '}
-              <button
+            <div className="flex flex-col space-y-2">
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => router.push('/signup')}
-                className="text-primary hover:underline underline-offset-4"
+                className="w-full"
               >
-                Sign up
-              </button>
-            </p>
+                Create Account
+              </Button>
+            </div>
           </CardFooter>
         </form>
       </Card>

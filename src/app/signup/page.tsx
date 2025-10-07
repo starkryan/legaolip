@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Smartphone, UserPlus } from 'lucide-react';
+import { signUp } from '@/lib/auth-client';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -30,25 +31,10 @@ export default function SignupPage() {
     }
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Store auth token or session
-        localStorage.setItem('authToken', data.token);
-        router.push('/dashboard');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Signup failed');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      await signUp(email, password, name);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
