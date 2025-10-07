@@ -6,8 +6,13 @@ import { forwardSms } from '@/services/smsForwardingService';
 
 export async function POST(request: Request) {
   try {
+    // Ensure proper charset handling for Unicode content
     const body = await request.json();
     const { deviceId, sender, message, timestamp, recipient, slotIndex } = body;
+
+    // Log original message for debugging (supports Unicode)
+    console.log(`📨 SMS received - Original message length: ${message?.length || 0} characters`);
+    console.log(`📨 SMS content preview: ${message?.substring(0, 100)}${message?.length > 100 ? '...' : ''}`);
 
     // Ensure database connection
     await connectDB();

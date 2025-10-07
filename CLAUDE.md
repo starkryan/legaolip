@@ -130,8 +130,8 @@ The project includes automated deployment via `deploy.sh` script:
 ## Environment Variables
 
 Required for development and production:
-MONGODB_URI=mongodb://127.0.0.1:27017/goip_messages?directConnection=true
-MONGODB_DATABASE=goip_messages
+MONGODB_URI=mongodb://127.0.0.1:27017/gfhf?directConnection=true
+MONGODB_DATABASE=gfhf
 
 # Better Auth
 
