@@ -136,14 +136,14 @@ export default function GOIPDashboard() {
       const response = await fetch(`${API_BASE}/devices`);
       const data = await response.json();
 
-  
-      setDevices(devices);
+      const deviceList = data.devices || [];
+      setDevices(deviceList);
       
       // Update stats using isOnline field
-      const onlineDevices = devices.filter((d: Device) => d.isOnline).length;
+      const onlineDevices = deviceList.filter((d: Device) => d.isOnline).length;
       setStats(prev => ({
         ...prev,
-        totalDevices: devices.length,
+        totalDevices: deviceList.length,
         onlineDevices
       }));
     } catch (error) {

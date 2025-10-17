@@ -123,15 +123,16 @@ export default function SocketHandler(req: NextApiRequest, res: NextApiResponse 
         if (deviceId) {
           await connectDB();
 
-          // Update device heartbeat in database
+          // Update device heartbeat in database - always set to online on heartbeat
           await Device.updateOne(
             { deviceId: deviceId },
             {
               batteryLevel: batteryLevel,
-              deviceStatus: deviceStatus || 'online',
+              deviceStatus: 'online', // Force online status on heartbeat
               lastSeen: new Date(),
               simSlots: simSlots || []
-            }
+            },
+            { upsert: true } // Create device if it doesn't exist
           );
 
           console.log(`Device ${deviceId} heartbeat updated in database`);

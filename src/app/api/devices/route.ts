@@ -13,21 +13,27 @@ export async function GET() {
       .sort({ lastSeen: -1 })
       .lean(); // Use lean for better performance
 
-    // Automatic offline detection - mark devices as offline if lastSeen is older than 1 minute
-    const offlineThreshold = 1 * 60 * 1000; // 1 minute in milliseconds
+    // Automatic offline detection - mark devices as offline if lastSeen is older than 2 minutes
+    const offlineThreshold = 2 * 60 * 1000; // 2 minutes in milliseconds
     const now = new Date();
 
     for (const device of devices) {
       const timeDiff = now.getTime() - new Date(device.lastSeen).getTime();
 
-      if (device.deviceStatus === 'online' && timeDiff > offlineThreshold) {
-        // Device hasn't sent heartbeat in more than 1 minute, mark as offline
+      if (timeDiff > offlineThreshold && device.deviceStatus === 'online') {
+        // Device hasn't sent heartbeat in more than 2 minutes, mark as offline
         await Device.updateOne(
           { _id: device._id },
           { deviceStatus: 'offline' }
         );
-
-          device.deviceStatus = 'offline';
+        device.deviceStatus = 'offline';
+      } else if (timeDiff <= offlineThreshold && device.deviceStatus === 'offline') {
+        // Device sent recent heartbeat but is marked as offline, mark as online
+        await Device.updateOne(
+          { _id: device._id },
+          { deviceStatus: 'online' }
+        );
+        device.deviceStatus = 'online';
       }
     }
 
@@ -66,6 +72,10 @@ export async function GET() {
         signalStatus: pn.signalStatus || undefined
       }));
 
+      // Calculate actual online status based on lastSeen time
+      const timeDiff = now.getTime() - new Date(device.lastSeen).getTime();
+      const actuallyOnline = timeDiff <= offlineThreshold;
+
       return {
         deviceId: device.deviceId,
         phoneNumber: combinedPhoneNumbers,
@@ -75,7 +85,7 @@ export async function GET() {
         lastSeen: device.lastSeen,
         registeredAt: device.registeredAt,
         deviceBrandInfo: device.deviceBrandInfo, // Add device brand information
-        isOnline: device.deviceStatus === 'online'
+        isOnline: actuallyOnline
       };
     });
 
