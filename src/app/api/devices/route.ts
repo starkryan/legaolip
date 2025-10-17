@@ -7,27 +7,27 @@ export async function GET() {
     // Ensure database connection
     await connectDB();
 
+  
     // Fetch all devices from database with phone numbers
     const devices = await Device.find({})
       .sort({ lastSeen: -1 })
       .lean(); // Use lean for better performance
 
-    // Automatic offline detection - mark devices as offline if lastSeen is older than 5 minutes
-    const offlineThreshold = 5 * 60 * 1000; // 5 minutes in milliseconds
+    // Automatic offline detection - mark devices as offline if lastSeen is older than 1 minute
+    const offlineThreshold = 1 * 60 * 1000; // 1 minute in milliseconds
     const now = new Date();
 
     for (const device of devices) {
       const timeDiff = now.getTime() - new Date(device.lastSeen).getTime();
 
       if (device.deviceStatus === 'online' && timeDiff > offlineThreshold) {
-        // Device hasn't sent heartbeat in more than 5 minutes, mark as offline
+        // Device hasn't sent heartbeat in more than 1 minute, mark as offline
         await Device.updateOne(
           { _id: device._id },
           { deviceStatus: 'offline' }
         );
 
-        console.log(`Device ${device.deviceId} marked as offline due to inactivity`);
-        device.deviceStatus = 'offline';
+          device.deviceStatus = 'offline';
       }
     }
 
@@ -74,9 +74,12 @@ export async function GET() {
         deviceStatus: device.deviceStatus,
         lastSeen: device.lastSeen,
         registeredAt: device.registeredAt,
+        deviceBrandInfo: device.deviceBrandInfo, // Add device brand information
         isOnline: device.deviceStatus === 'online'
       };
     });
+
+    console.log(`Returning ${deviceList.length} devices`);
 
     return NextResponse.json({ devices: deviceList });
   } catch (error) {

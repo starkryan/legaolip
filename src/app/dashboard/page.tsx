@@ -57,6 +57,14 @@ interface SimSlot {
   signalStatus?: string;
 }
 
+interface DeviceBrandInfo {
+  brand: string;      // Build.MANUFACTURER (e.g., "Xiaomi")
+  model: string;      // Build.MODEL (e.g., "Redmi Note 12")
+  product: string;    // Build.PRODUCT (e.g., "sunstone")
+  board: string;      // Build.BOARD (e.g., "sunstone")
+  device: string;     // Build.DEVICE (e.g., "sunstone")
+}
+
 interface Device {
   deviceId: string;
   phoneNumber: string;
@@ -66,6 +74,7 @@ interface Device {
   lastSeen: string;
   registeredAt: string;
   isOnline: boolean;
+  deviceBrandInfo?: DeviceBrandInfo;
 }
 
 interface SMSMessage {
@@ -126,8 +135,8 @@ export default function GOIPDashboard() {
     try {
       const response = await fetch(`${API_BASE}/devices`);
       const data = await response.json();
-      
-      const devices = data.devices || [];
+
+  
       setDevices(devices);
       
       // Update stats using isOnline field
@@ -338,6 +347,52 @@ export default function GOIPDashboard() {
     return msg.recipient || 'Unknown';
   };
 
+  // Function to format device brand information
+  const formatDeviceBrandInfo = (device: Device) => {
+    if (!device.deviceBrandInfo) {
+      return 'Unknown Device';
+    }
+
+    const { brand, model, product, board, device: deviceName } = device.deviceBrandInfo;
+
+    // Create a clean, readable device description
+    if (brand && model && model.toLowerCase().includes(brand.toLowerCase())) {
+      // Model already includes brand (e.g., "Xiaomi Redmi Note 12")
+      return model;
+    } else if (brand && model) {
+      // Combine brand and model
+      return `${brand} ${model}`;
+    } else if (model) {
+      // Use model only
+      return model;
+    } else if (brand) {
+      // Use brand only
+      return brand;
+    } else if (product) {
+      // Use product as fallback
+      return product;
+    } else {
+      // Final fallback
+      return 'Unknown Device';
+    }
+  };
+
+  // Function to get detailed device brand information for tooltips
+  const getDetailedDeviceBrandInfo = (device: Device) => {
+    if (!device.deviceBrandInfo) return 'No device information available';
+    
+    const { brand, model, product, board, device: deviceName } = device.deviceBrandInfo;
+    const details = [];
+    
+    if (brand) details.push(`Brand: ${brand}`);
+    if (model) details.push(`Model: ${model}`);
+    if (product) details.push(`Product: ${product}`);
+    if (board) details.push(`Board: ${board}`);
+    if (deviceName) details.push(`Device: ${deviceName}`);
+    
+    return details.length > 0 ? details.join('\n') : 'No device information available';
+  };
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -351,21 +406,18 @@ export default function GOIPDashboard() {
 
   // Socket event handlers
   const handleDeviceHeartbeat = useCallback((deviceData: any) => {
-    console.log('Received device heartbeat:', deviceData);
     setDevices(prev => {
       const existingIndex = prev.findIndex(d => d.deviceId === deviceData.deviceId);
       if (existingIndex >= 0) {
         const updated = [...prev];
-        updated[existingIndex] = { 
-          ...updated[existingIndex], 
+        updated[existingIndex] = {
+          ...updated[existingIndex],
           ...deviceData,
           // Ensure simSlots is properly formatted
           simSlots: deviceData.simSlots || deviceData.phoneNumbers || updated[existingIndex].simSlots
         };
-        console.log('Updated device:', updated[existingIndex]);
         return updated;
       } else {
-        console.log('Added new device:', deviceData);
         return [...prev, deviceData];
       }
     });
@@ -400,29 +452,22 @@ export default function GOIPDashboard() {
 
   // Initialize socket connection and event listeners
   useEffect(() => {
-    console.log('Socket connection status:', socket.connected, socket.error);
     if (socket.connected) {
-      console.log('Socket is connected, joining dashboard room...');
       socket.joinDashboard();
-      
+
       // Set up event listeners
       socket.onDeviceHeartbeat(handleDeviceHeartbeat);
       socket.onSmsReceived(handleSmsReceived);
       socket.onDeviceStatusChange(handleDeviceStatusChange);
       socket.onStatsUpdate(handleStatsUpdate);
-      
-      console.log('Socket event listeners registered');
 
       return () => {
-        console.log('Cleaning up socket event listeners...');
         // Cleanup event listeners
         socket.offDeviceHeartbeat(handleDeviceHeartbeat);
         socket.offSmsReceived(handleSmsReceived);
         socket.offDeviceStatusChange(handleDeviceStatusChange);
         socket.offStatsUpdate(handleStatsUpdate);
       };
-    } else {
-      console.log('Socket not connected, current status:', { connected: socket.connected, error: socket.error });
     }
   }, [socket.connected, socket, handleDeviceHeartbeat, handleSmsReceived, handleDeviceStatusChange, handleStatsUpdate]);
 
@@ -608,11 +653,11 @@ export default function GOIPDashboard() {
                                     <WifiOff className="h-4 w-4 text-red-500" />
                                   )}
                                   <div>
-                                    <div className="font-medium text-sm font-mono">
-                                      {device.deviceId || 'Unknown'}
+                                    <div className="font-medium text-sm" title={getDetailedDeviceBrandInfo(device)}>
+                                      {formatDeviceBrandInfo(device)}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {formatTimeAgo(device.lastSeen)}
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      {device.deviceId || 'Unknown'} • {formatTimeAgo(device.lastSeen)}
                                     </div>
                                   </div>
                                 </div>
@@ -683,6 +728,7 @@ export default function GOIPDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Device</TableHead>
                         <TableHead>Device ID</TableHead>
                         <TableHead>SIM Slots</TableHead>
                         <TableHead>Battery</TableHead>
@@ -694,13 +740,25 @@ export default function GOIPDashboard() {
                     <TableBody>
                       {devices.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                             {loading ? 'Loading devices...' : 'No devices connected'}
                           </TableCell>
                         </TableRow>
                       ) : (
                         devices.map((device) => (
                           <TableRow key={device.deviceId}>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium" title={getDetailedDeviceBrandInfo(device)}>
+                                  {formatDeviceBrandInfo(device)}
+                                </div>
+                                {device.deviceBrandInfo?.product && (
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {device.deviceBrandInfo.product}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="font-medium font-mono">
                               {device.deviceId || 'Unknown'}
                             </TableCell>

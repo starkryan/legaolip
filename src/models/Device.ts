@@ -12,6 +12,15 @@ export interface IDevice extends Document {
   createdAt: Date;
   updatedAt: Date;
 
+  // Device brand information
+  deviceBrandInfo?: {
+    brand?: string;    // Build.MANUFACTURER
+    model?: string;    // Build.MODEL
+    product?: string;  // Build.PRODUCT
+    board?: string;    // Build.BOARD
+    device?: string;   // Build.DEVICE
+  };
+
   // Skyline-compatible fields
   macAddress?: string;
   ipAddress?: string;
@@ -88,6 +97,15 @@ const DeviceSchema = new Schema<IDevice>({
   expires: {
     type: Number,
     default: -1
+  },
+
+  // Device brand information
+  deviceBrandInfo: {
+    brand: { type: String, trim: true },
+    model: { type: String, trim: true },
+    product: { type: String, trim: true },
+    board: { type: String, trim: true },
+    device: { type: String, trim: true }
   }
 }, {
   timestamps: true,
@@ -118,7 +136,7 @@ DeviceSchema.statics.findWithPhoneNumbers = function() {
 };
 
 // Static method to mark offline devices
-DeviceSchema.statics.markOfflineDevices = function(thresholdMinutes: number = 5) {
+DeviceSchema.statics.markOfflineDevices = function(thresholdMinutes: number = 1) {
   const threshold = new Date(Date.now() - thresholdMinutes * 60 * 1000);
   return this.updateMany(
     {
@@ -133,8 +151,8 @@ DeviceSchema.statics.markOfflineDevices = function(thresholdMinutes: number = 5)
 DeviceSchema.pre('save', function(next) {
   if (this.isModified('lastSeen') && this.lastSeen) {
     // If lastSeen is updated to recent time, mark as online
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    if (this.lastSeen > fiveMinutesAgo) {
+    const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+    if (this.lastSeen > oneMinuteAgo) {
       this.deviceStatus = 'online';
     }
   }

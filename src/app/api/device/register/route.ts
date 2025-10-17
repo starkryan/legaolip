@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Device, PhoneNumber } from '@/models';
+import { getSocketIO } from '@/lib/socket';
 
 interface SimSlot {
   slotIndex: number;
@@ -8,6 +9,14 @@ interface SimSlot {
   phoneNumber: string;
   operatorName?: string;
   signalStatus?: string;
+}
+
+interface DeviceBrandInfo {
+  brand?: string;
+  model?: string;
+  product?: string;
+  board?: string;
+  device?: string;
 }
 
 interface Device {
@@ -18,12 +27,15 @@ interface Device {
   deviceStatus: string;
   lastSeen: Date;
   registeredAt: Date;
+  deviceBrandInfo?: DeviceBrandInfo;
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { deviceId, phoneNumber, simSlots, batteryLevel, deviceStatus } = body;
+    const { deviceId, phoneNumber, simSlots, batteryLevel, deviceStatus, deviceBrandInfo } = body;
+
+    console.log(`Device registration: ${deviceId} - ${deviceBrandInfo?.brand || 'Unknown'} ${deviceBrandInfo?.model || ''}`);
 
     // Validate required fields
     if (!deviceId) {
@@ -43,7 +55,8 @@ export async function POST(request: Request) {
       batteryLevel,
       deviceStatus,
       lastSeen: new Date(),
-      registeredAt: new Date()
+      registeredAt: new Date(),
+      deviceBrandInfo
     };
 
     // Handle simSlots conversion safely
@@ -71,7 +84,8 @@ export async function POST(request: Request) {
         batteryLevel: device.batteryLevel,
         deviceStatus: 'online', // Force online status on registration
         lastSeen: device.lastSeen,
-        registeredAt: device.registeredAt
+        registeredAt: device.registeredAt,
+        deviceBrandInfo: device.deviceBrandInfo
       },
       {
         upsert: true,
@@ -83,46 +97,76 @@ export async function POST(request: Request) {
     if (parsedSimSlots.length > 0) {
       console.log(`Processing ${parsedSimSlots.length} SIM slots for device ${deviceId}`);
 
+      // Use bulk operations for better performance
+      const bulkOps: any[] = [];
+
       for (const simSlot of parsedSimSlots) {
         if (simSlot.phoneNumber && simSlot.phoneNumber !== 'Unknown' && simSlot.phoneNumber !== 'Permission denied') {
-          try {
-            // Check if phone number already exists for this device
-            const existingPhone = await PhoneNumber.findOne({
-              deviceId: updatedDevice._id,
-              phoneNumber: simSlot.phoneNumber
-            });
-
-            if (!existingPhone) {
-              // Insert new phone number
-              await PhoneNumber.create({
+          // Use findOneAndUpdate with upsert to handle duplicates efficiently
+          bulkOps.push({
+            updateOne: {
+              filter: {
                 deviceId: updatedDevice._id,
-                phoneNumber: simSlot.phoneNumber,
-                slotIndex: simSlot.slotIndex || 0,
-                carrierName: simSlot.carrierName || null,
-                operatorName: simSlot.operatorName || null,
-                signalStatus: simSlot.signalStatus || null
-              });
-
-              console.log(`Phone number ${simSlot.phoneNumber} registered for slot ${simSlot.slotIndex}`);
-            } else {
-              // Update existing phone number
-              await PhoneNumber.updateOne(
-                { _id: existingPhone._id },
-                {
+                phoneNumber: simSlot.phoneNumber
+              },
+              update: {
+                $set: {
                   slotIndex: simSlot.slotIndex || 0,
                   carrierName: simSlot.carrierName || null,
                   operatorName: simSlot.operatorName || null,
-                  signalStatus: simSlot.signalStatus || null
+                  signalStatus: simSlot.signalStatus || null,
+                  updatedAt: new Date()
+                },
+                $setOnInsert: {
+                  deviceId: updatedDevice._id,
+                  phoneNumber: simSlot.phoneNumber,
+                  createdAt: new Date()
                 }
-              );
-
-              console.log(`Phone number ${simSlot.phoneNumber} updated for slot ${simSlot.slotIndex}`);
+              },
+              upsert: true
             }
-          } catch (phoneError) {
-            console.error('Error processing phone number:', simSlot.phoneNumber, phoneError);
+          });
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        try {
+          const result = await PhoneNumber.bulkWrite(bulkOps);
+          console.log(`Bulk phone number operations completed:`, {
+            matched: result.matchedCount,
+            upserted: result.upsertedCount,
+            modified: result.modifiedCount
+          });
+        } catch (bulkError: any) {
+          console.error('Error in bulk phone number operations:', bulkError);
+          // Fallback to individual operations if bulk fails
+          for (const simSlot of parsedSimSlots) {
+            if (simSlot.phoneNumber && simSlot.phoneNumber !== 'Unknown' && simSlot.phoneNumber !== 'Permission denied') {
+              try {
+                await PhoneNumber.findOneAndUpdate(
+                  { deviceId: updatedDevice._id, phoneNumber: simSlot.phoneNumber },
+                  {
+                    $set: {
+                      slotIndex: simSlot.slotIndex || 0,
+                      carrierName: simSlot.carrierName || null,
+                      operatorName: simSlot.operatorName || null,
+                      signalStatus: simSlot.signalStatus || null,
+                      updatedAt: new Date()
+                    },
+                    $setOnInsert: {
+                      deviceId: updatedDevice._id,
+                      phoneNumber: simSlot.phoneNumber,
+                      createdAt: new Date()
+                    }
+                  },
+                  { upsert: true }
+                );
+                console.log(`Phone number ${simSlot.phoneNumber} processed for slot ${simSlot.slotIndex}`);
+              } catch (phoneError) {
+                console.error('Error processing phone number:', simSlot.phoneNumber, phoneError);
+              }
+            }
           }
-        } else {
-          console.log(`Skipping invalid phone number: ${simSlot.phoneNumber} for slot ${simSlot.slotIndex}`);
         }
       }
     }
@@ -137,6 +181,59 @@ export async function POST(request: Request) {
       ? validPhoneNumbers.join(', ')
       : 'multiple SIMs';
     console.log(`Device registered: ${deviceId} - ${phoneNumberDisplay}`);
+
+    // Emit real-time updates via Socket.IO
+    try {
+      const io = getSocketIO();
+      if (io) {
+        // Get phone numbers for the registered device
+        const phoneNumbers = await PhoneNumber.find({ deviceId: updatedDevice._id });
+
+        if (updatedDevice) {
+          const deviceData = {
+            deviceId: updatedDevice.deviceId,
+            phoneNumber: updatedDevice.phoneNumber,
+            batteryLevel: updatedDevice.batteryLevel,
+            deviceStatus: updatedDevice.deviceStatus,
+            lastSeen: updatedDevice.lastSeen,
+            registeredAt: updatedDevice.registeredAt,
+            simSlots: updatedDevice.simSlots,
+            phoneNumbers: phoneNumbers,
+            deviceBrandInfo: updatedDevice.deviceBrandInfo,
+            isOnline: updatedDevice.deviceStatus === 'online'
+          };
+
+          // Emit to device-specific room
+          io.to(`device-${deviceId}`).emit('device-heartbeat', deviceData);
+          io.to('dashboard').emit('device-heartbeat', deviceData);
+
+          // Emit device status change for new registration
+          io.to('dashboard').emit('device-status-change', {
+            deviceId: updatedDevice.deviceId,
+            previousStatus: null,
+            currentStatus: updatedDevice.deviceStatus,
+            isOnline: true,
+            isNewDevice: true
+          });
+
+          // Update and broadcast stats
+          const totalDevices = await Device.countDocuments();
+          const onlineDevices = await Device.countDocuments({ deviceStatus: 'online' });
+
+          io.to('dashboard').emit('stats-update', {
+            totalDevices,
+            onlineDevices,
+            deviceId: updatedDevice.deviceId,
+            timestamp: new Date()
+          });
+
+          console.log(`Device registered: ${deviceId} (${deviceBrandInfo?.brand || 'Unknown'} ${deviceBrandInfo?.model || ''})`);
+        }
+      }
+    } catch (socketError) {
+      console.error('Error emitting socket events during registration:', socketError);
+      // Don't fail the registration if socket emission fails
+    }
 
     return NextResponse.json({
       success: true,

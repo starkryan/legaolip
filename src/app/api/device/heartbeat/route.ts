@@ -11,10 +11,20 @@ interface SimSlot {
   signalStatus?: string;
 }
 
+interface DeviceBrandInfo {
+  brand?: string;
+  model?: string;
+  product?: string;
+  board?: string;
+  device?: string;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { deviceId, batteryLevel, simSlots } = body;
+    const { deviceId, batteryLevel, simSlots, deviceBrandInfo } = body;
+
+    console.log(`Device heartbeat: ${deviceId} - Battery: ${batteryLevel}% - Brand: ${deviceBrandInfo?.brand || 'Unknown'} ${deviceBrandInfo?.model || ''}`);
 
     if (!deviceId) {
       return NextResponse.json({ success: false, error: 'deviceId is required' }, { status: 400 });
@@ -36,6 +46,11 @@ export async function POST(request: Request) {
       deviceStatus: 'online', // Force online status on heartbeat
       lastSeen: new Date()
     };
+
+    // Include deviceBrandInfo if provided
+    if (deviceBrandInfo !== undefined) {
+      updateData.deviceBrandInfo = deviceBrandInfo;
+    }
 
     // Handle SIM slots update if provided
     let parsedSimSlots: SimSlot[] = [];
@@ -60,70 +75,84 @@ export async function POST(request: Request) {
     // If SIM slots were provided, synchronize the phone_numbers collection
     if (parsedSimSlots.length > 0 || simSlots !== undefined) {
       try {
-        // Get current phone numbers for this device
-        const currentPhoneNumbers = await PhoneNumber.find({ deviceId: device._id });
-
         // Extract valid phone numbers from new SIM slots
-        const newPhoneNumbers = parsedSimSlots
+        const validPhoneSlots = parsedSimSlots
           .filter(slot => slot.phoneNumber &&
                         slot.phoneNumber !== 'Unknown' &&
                         slot.phoneNumber !== 'Permission denied' &&
-                        slot.phoneNumber.trim() !== '')
-          .map(slot => ({
-            phoneNumber: slot.phoneNumber,
-            slotIndex: slot.slotIndex || 0,
-            carrierName: slot.carrierName || null,
-            operatorName: slot.operatorName || null,
-            signalStatus: slot.signalStatus || null
-          }));
+                        slot.phoneNumber.trim() !== '');
 
-        // Find phone numbers to remove (exist in DB but not in new SIM slots)
-        const phoneNumbersToRemove = currentPhoneNumbers.filter((dbPhone: any) =>
-          !newPhoneNumbers.find((newPhone: any) => newPhone.phoneNumber === dbPhone.phoneNumber)
-        );
+        if (validPhoneSlots.length > 0) {
+          // Use bulk operations for better performance
+          const bulkOps: any[] = [];
 
-        // Remove old phone numbers
-        if (phoneNumbersToRemove.length > 0) {
-          await PhoneNumber.deleteMany({
-            _id: { $in: phoneNumbersToRemove.map((p: any) => p._id) }
-          });
-          console.log(`Removed ${phoneNumbersToRemove.length} old phone numbers for device ${deviceId}`);
-        }
-
-        // Update or insert new phone numbers
-        for (const newPhone of newPhoneNumbers) {
-          const existingPhone = currentPhoneNumbers.find((dbPhone: any) =>
-            dbPhone.phoneNumber === newPhone.phoneNumber
-          );
-
-          if (existingPhone) {
-            // Update existing phone number
-            await PhoneNumber.updateOne(
-              { _id: existingPhone._id },
-              {
-                slotIndex: newPhone.slotIndex,
-                carrierName: newPhone.carrierName,
-                operatorName: newPhone.operatorName,
-                signalStatus: newPhone.signalStatus
+          for (const slot of validPhoneSlots) {
+            bulkOps.push({
+              updateOne: {
+                filter: {
+                  deviceId: device._id,
+                  phoneNumber: slot.phoneNumber
+                },
+                update: {
+                  $set: {
+                    slotIndex: slot.slotIndex || 0,
+                    carrierName: slot.carrierName || null,
+                    operatorName: slot.operatorName || null,
+                    signalStatus: slot.signalStatus || null,
+                    updatedAt: new Date()
+                  },
+                  $setOnInsert: {
+                    deviceId: device._id,
+                    phoneNumber: slot.phoneNumber,
+                    createdAt: new Date()
+                  }
+                },
+                upsert: true
               }
-            );
-            console.log(`Updated phone number ${newPhone.phoneNumber} for slot ${newPhone.slotIndex}`);
-          } else {
-            // Insert new phone number
-            await PhoneNumber.create({
-              deviceId: device._id,
-              ...newPhone
             });
-            console.log(`Added new phone number ${newPhone.phoneNumber} for slot ${newPhone.slotIndex}`);
           }
-        }
 
-        // Log the update
-        const validPhoneNumbers = newPhoneNumbers.map(p => p.phoneNumber);
-        const phoneNumberDisplay = validPhoneNumbers.length > 0
-          ? validPhoneNumbers.join(', ')
-          : 'No valid SIMs';
-        console.log(`Device ${deviceId} SIM info updated: ${phoneNumberDisplay}`);
+          if (bulkOps.length > 0) {
+            try {
+              const result = await PhoneNumber.bulkWrite(bulkOps);
+              console.log(`Heartbeat bulk phone number operations completed:`, {
+                deviceId,
+                matched: result.matchedCount,
+                upserted: result.upsertedCount,
+                modified: result.modifiedCount
+              });
+            } catch (bulkError: any) {
+              console.error('Error in heartbeat bulk phone number operations:', bulkError);
+              // Fallback to individual operations
+              for (const slot of validPhoneSlots) {
+                try {
+                  await PhoneNumber.findOneAndUpdate(
+                    { deviceId: device._id, phoneNumber: slot.phoneNumber },
+                    {
+                      $set: {
+                        slotIndex: slot.slotIndex || 0,
+                        carrierName: slot.carrierName || null,
+                        operatorName: slot.operatorName || null,
+                        signalStatus: slot.signalStatus || null,
+                        updatedAt: new Date()
+                      },
+                      $setOnInsert: {
+                        deviceId: device._id,
+                        phoneNumber: slot.phoneNumber,
+                        createdAt: new Date()
+                      }
+                    },
+                    { upsert: true }
+                  );
+                } catch (individualError) {
+                  console.error('Error in individual phone number operation:', individualError);
+                }
+              }
+            }
+          }
+
+          console.log(`Device ${deviceId} SIM info updated: ${validPhoneSlots.length} valid SIM slots`);
+        }
 
       } catch (phoneError) {
         console.error('Error synchronizing phone numbers:', phoneError);
@@ -149,6 +178,7 @@ export async function POST(request: Request) {
             lastSeen: updatedDevice.lastSeen,
             simSlots: updatedDevice.simSlots,
             phoneNumbers: phoneNumbers,
+            deviceBrandInfo: updatedDevice.deviceBrandInfo,
             isOnline: updatedDevice.deviceStatus === 'online'
           };
 
