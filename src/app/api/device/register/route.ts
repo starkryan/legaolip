@@ -97,11 +97,41 @@ export async function POST(request: Request) {
     if (parsedSimSlots.length > 0) {
       console.log(`Processing ${parsedSimSlots.length} SIM slots for device ${deviceId}`);
 
-      // Use bulk operations for better performance
-      const bulkOps: any[] = [];
+      // Extract valid phone numbers from current SIM slots
+      const validPhoneSlots = parsedSimSlots.filter(simSlot =>
+        simSlot.phoneNumber &&
+        simSlot.phoneNumber !== 'Unknown' &&
+        simSlot.phoneNumber !== 'Permission denied' &&
+        simSlot.phoneNumber.trim() !== ''
+      );
 
-      for (const simSlot of parsedSimSlots) {
-        if (simSlot.phoneNumber && simSlot.phoneNumber !== 'Unknown' && simSlot.phoneNumber !== 'Permission denied') {
+      // Get current phone numbers for this device to handle cleanup
+      const currentPhoneNumbers = await PhoneNumber.find({ deviceId: updatedDevice._id });
+      const currentPhoneNumbersSet = new Set(currentPhoneNumbers.map(pn => pn.phoneNumber));
+
+      // Get new phone numbers from current SIM slots
+      const newPhoneNumbersSet = new Set(validPhoneSlots.map(slot => slot.phoneNumber));
+
+      // Find phone numbers to remove (exist in DB but not in current SIM slots)
+      const phoneNumbersToRemove = currentPhoneNumbers.filter(pn =>
+        !newPhoneNumbersSet.has(pn.phoneNumber)
+      );
+
+      // Remove stale phone numbers first
+      if (phoneNumbersToRemove.length > 0) {
+        const phoneNumbersToRemoveStrings = phoneNumbersToRemove.map(pn => pn.phoneNumber);
+        const deleteResult = await PhoneNumber.deleteMany({
+          deviceId: updatedDevice._id,
+          phoneNumber: { $in: phoneNumbersToRemoveStrings }
+        });
+        console.log(`Removed ${deleteResult.deletedCount} stale phone numbers for device ${deviceId}:`, phoneNumbersToRemoveStrings);
+      }
+
+      if (validPhoneSlots.length > 0) {
+        // Use bulk operations for better performance
+        const bulkOps: any[] = [];
+
+        for (const simSlot of validPhoneSlots) {
           // Use findOneAndUpdate with upsert to handle duplicates efficiently
           bulkOps.push({
             updateOne: {
@@ -127,21 +157,19 @@ export async function POST(request: Request) {
             }
           });
         }
-      }
 
-      if (bulkOps.length > 0) {
-        try {
-          const result = await PhoneNumber.bulkWrite(bulkOps);
-          console.log(`Bulk phone number operations completed:`, {
-            matched: result.matchedCount,
-            upserted: result.upsertedCount,
-            modified: result.modifiedCount
-          });
-        } catch (bulkError: any) {
-          console.error('Error in bulk phone number operations:', bulkError);
-          // Fallback to individual operations if bulk fails
-          for (const simSlot of parsedSimSlots) {
-            if (simSlot.phoneNumber && simSlot.phoneNumber !== 'Unknown' && simSlot.phoneNumber !== 'Permission denied') {
+        if (bulkOps.length > 0) {
+          try {
+            const result = await PhoneNumber.bulkWrite(bulkOps);
+            console.log(`Bulk phone number operations completed:`, {
+              matched: result.matchedCount,
+              upserted: result.upsertedCount,
+              modified: result.modifiedCount
+            });
+          } catch (bulkError: any) {
+            console.error('Error in bulk phone number operations:', bulkError);
+            // Fallback to individual operations if bulk fails
+            for (const simSlot of validPhoneSlots) {
               try {
                 await PhoneNumber.findOneAndUpdate(
                   { deviceId: updatedDevice._id, phoneNumber: simSlot.phoneNumber },

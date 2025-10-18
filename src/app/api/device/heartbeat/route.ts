@@ -82,6 +82,28 @@ export async function POST(request: Request) {
                         slot.phoneNumber !== 'Permission denied' &&
                         slot.phoneNumber.trim() !== '');
 
+        // Get current phone numbers for this device
+        const currentPhoneNumbers = await PhoneNumber.find({ deviceId: device._id });
+        const currentPhoneNumbersSet = new Set(currentPhoneNumbers.map(pn => pn.phoneNumber));
+
+        // Get new phone numbers from current SIM slots
+        const newPhoneNumbersSet = new Set(validPhoneSlots.map(slot => slot.phoneNumber));
+
+        // Find phone numbers to remove (exist in DB but not in current SIM slots)
+        const phoneNumbersToRemove = currentPhoneNumbers.filter(pn =>
+          !newPhoneNumbersSet.has(pn.phoneNumber)
+        );
+
+        // Remove stale phone numbers first
+        if (phoneNumbersToRemove.length > 0) {
+          const phoneNumbersToRemoveStrings = phoneNumbersToRemove.map(pn => pn.phoneNumber);
+          const deleteResult = await PhoneNumber.deleteMany({
+            deviceId: device._id,
+            phoneNumber: { $in: phoneNumbersToRemoveStrings }
+          });
+          console.log(`Removed ${deleteResult.deletedCount} stale phone numbers for device ${deviceId}:`, phoneNumbersToRemoveStrings);
+        }
+
         if (validPhoneSlots.length > 0) {
           // Use bulk operations for better performance
           const bulkOps: any[] = [];
