@@ -82,12 +82,31 @@ function generateSN(phoneNumber: string): string {
   return cleanNumber;
 }
 
-// Determine network type based on signal strength and carrier
+// Determine network type based on signal strength and carrier - Enhanced mapping
 function getNetworkType(carrierName: string, signalStatus: string): number {
-  if (!signalStatus || signalStatus === 'Poor') return 0;
-  if (signalStatus === 'Fair') return 2;
-  if (signalStatus === 'Excellent' || signalStatus === 'Good') return 4;
-  return 2; // Default to 2G
+  const status = signalStatus?.toLowerCase();
+  const carrier = carrierName?.toLowerCase() || '';
+
+  // Enhanced signal status to network mapping
+  switch (status) {
+    case 'excellent':
+    case 'good':
+      return 4; // 4G for good signals
+    case 'fair':
+      return 2; // 2G for fair signals
+    case 'poor':
+    case 'very poor':
+      return carrier.includes('jio') || carrier.includes('4g') ? 2 : 0; // 2G for poor but Jio might still have signal
+    case 'no signal':
+    case null:
+    case undefined:
+      return 0; // No signal
+    default:
+      // Check carrier hints
+      if (carrier.includes('4g') || carrier.includes('lte')) return 4;
+      if (carrier.includes('2g') || carrier.includes('edge')) return 2;
+      return 2; // Default to 2G
+  }
 }
 
 // Determine port status based on device status and last seen
@@ -115,13 +134,23 @@ function getPortStatus(device: DeviceWithPhoneNumbers, portIndex: number): numbe
   return 3; // Active
 }
 
-// Generate signal strength (0-15)
-function getSignalStrength(signalStatus: string): number {
-  switch (signalStatus) {
-    case 'Excellent': return 15;
-    case 'Good': return 12;
-    case 'Fair': return 8;
-    case 'Poor': return 4;
+// Generate signal strength (0-15) - Enhanced mapping
+function getSignalStrength(signalStatus: string, networkType: number = 0): number {
+  // First try signal status mapping
+  switch (signalStatus?.toLowerCase()) {
+    case 'excellent': return 15;
+    case 'good': return 12;
+    case 'fair': return 8;
+    case 'poor': return 4;
+    case 'very poor': return 2;
+    default: break; // Fall through to network-based mapping
+  }
+
+  // If signal status is empty/null, use network type as fallback
+  switch (networkType) {
+    case 4: return 12; // 4G = Good signal
+    case 2: return 6;  // 2G = Fair signal
+    case 0: return 0;  // No signal = 0
     default: return 0;
   }
 }
@@ -184,7 +213,7 @@ export function transformDeviceToSkyline(device: DeviceWithPhoneNumbers): Skylin
     port.sn = phoneNumber.sn || generateSN(phoneNumber.phoneNumber);
     port.opr = phoneNumber.carrierName || 'Unknown';
     port.bal = phoneNumber.balance || '0.00';
-    port.sig = phoneNumber.signal !== null ? phoneNumber.signal : getSignalStrength(phoneNumber.signalStatus || '');
+    port.sig = phoneNumber.signal !== null ? phoneNumber.signal : getSignalStrength(phoneNumber.signalStatus || '', networkType);
 
     ports.push(port);
   }
@@ -283,7 +312,7 @@ export function transformDevicesToSkyline(devices: DeviceWithPhoneNumbers[]): Sk
     const deviceId = phoneData.deviceId;
     port.opr = `${carrierName} (${deviceId})`;
     port.bal = phone.balance || '0.00';
-    port.sig = phone.signal !== null ? phone.signal : getSignalStrength(phone.signalStatus || '');
+    port.sig = phone.signal !== null ? phone.signal : getSignalStrength(phone.signalStatus || '', networkType);
 
     ports.push(port);
     portCounter++;

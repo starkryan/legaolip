@@ -132,6 +132,19 @@ export async function POST(request: Request) {
         const bulkOps: any[] = [];
 
         for (const simSlot of validPhoneSlots) {
+          // Convert signalStatus to numeric signal value (0-15)
+          let signalValue = 0;
+          if (simSlot.signalStatus) {
+            switch (simSlot.signalStatus.toLowerCase()) {
+              case 'excellent': signalValue = 15; break;
+              case 'good': signalValue = 12; break;
+              case 'fair': signalValue = 8; break;
+              case 'poor': signalValue = 4; break;
+              case 'very poor': signalValue = 2; break;
+              default: signalValue = 0;
+            }
+          }
+
           // Use findOneAndUpdate with upsert to handle duplicates efficiently
           bulkOps.push({
             updateOne: {
@@ -145,6 +158,7 @@ export async function POST(request: Request) {
                   carrierName: simSlot.carrierName || null,
                   operatorName: simSlot.operatorName || null,
                   signalStatus: simSlot.signalStatus || null,
+                  signal: signalValue, // Add numeric signal value
                   updatedAt: new Date()
                 },
                 $setOnInsert: {
@@ -171,6 +185,19 @@ export async function POST(request: Request) {
             // Fallback to individual operations if bulk fails
             for (const simSlot of validPhoneSlots) {
               try {
+                // Convert signalStatus to numeric signal value (0-15)
+                let signalValue = 0;
+                if (simSlot.signalStatus) {
+                  switch (simSlot.signalStatus.toLowerCase()) {
+                    case 'excellent': signalValue = 15; break;
+                    case 'good': signalValue = 12; break;
+                    case 'fair': signalValue = 8; break;
+                    case 'poor': signalValue = 4; break;
+                    case 'very poor': signalValue = 2; break;
+                    default: signalValue = 0;
+                  }
+                }
+
                 await PhoneNumber.findOneAndUpdate(
                   { deviceId: updatedDevice._id, phoneNumber: simSlot.phoneNumber },
                   {
@@ -179,6 +206,7 @@ export async function POST(request: Request) {
                       carrierName: simSlot.carrierName || null,
                       operatorName: simSlot.operatorName || null,
                       signalStatus: simSlot.signalStatus || null,
+                      signal: signalValue, // Add numeric signal value
                       updatedAt: new Date()
                     },
                     $setOnInsert: {
