@@ -424,6 +424,7 @@ export default function GOIPDashboard() {
   }, []);
 
   const handleSmsReceived = useCallback((smsData: any) => {
+    console.log('Dashboard: Received SMS event:', smsData);
     setSmsMessages(prev => [smsData, ...prev]);
     setStats(prev => ({
       ...prev,
@@ -441,6 +442,7 @@ export default function GOIPDashboard() {
   }, []);
 
   const handleStatsUpdate = useCallback((statsData: any) => {
+    console.log('Dashboard: Received stats update:', statsData);
     setStats(prev => ({
       ...prev,
       totalDevices: statsData.totalDevices ?? prev.totalDevices,
@@ -452,7 +454,10 @@ export default function GOIPDashboard() {
 
   // Initialize socket connection and event listeners
   useEffect(() => {
-    if (socket.connected) {
+    // Set up event listeners regardless of initial connection state
+    // They will be activated when socket connects
+
+    const setupEventListeners = () => {
       socket.joinDashboard();
 
       // Set up event listeners
@@ -460,16 +465,46 @@ export default function GOIPDashboard() {
       socket.onSmsReceived(handleSmsReceived);
       socket.onDeviceStatusChange(handleDeviceStatusChange);
       socket.onStatsUpdate(handleStatsUpdate);
+    };
 
-      return () => {
-        // Cleanup event listeners
-        socket.offDeviceHeartbeat(handleDeviceHeartbeat);
-        socket.offSmsReceived(handleSmsReceived);
-        socket.offDeviceStatusChange(handleDeviceStatusChange);
-        socket.offStatsUpdate(handleStatsUpdate);
-      };
+    const cleanupEventListeners = () => {
+      // Cleanup event listeners
+      socket.offDeviceHeartbeat(handleDeviceHeartbeat);
+      socket.offSmsReceived(handleSmsReceived);
+      socket.offDeviceStatusChange(handleDeviceStatusChange);
+      socket.offStatsUpdate(handleStatsUpdate);
+    };
+
+    if (socket.connected) {
+      setupEventListeners();
     }
-  }, [socket.connected, socket, handleDeviceHeartbeat, handleSmsReceived, handleDeviceStatusChange, handleStatsUpdate]);
+
+    // Listen for connection events
+    const handleConnect = () => {
+      console.log('Dashboard: Socket connected, setting up listeners');
+      setupEventListeners();
+    };
+
+    const handleDisconnect = () => {
+      console.log('Dashboard: Socket disconnected');
+      cleanupEventListeners();
+    };
+
+    // Add connection event listeners
+    if (socket.socket) {
+      socket.socket.on('connect', handleConnect);
+      socket.socket.on('disconnect', handleDisconnect);
+    }
+
+    return () => {
+      cleanupEventListeners();
+      // Remove connection event listeners
+      if (socket.socket) {
+        socket.socket.off('connect', handleConnect);
+        socket.socket.off('disconnect', handleDisconnect);
+      }
+    };
+  }, [socket, handleDeviceHeartbeat, handleSmsReceived, handleDeviceStatusChange, handleStatsUpdate]);
 
   // Initial data load and fallback polling
   useEffect(() => {

@@ -107,23 +107,36 @@ export async function POST(request: Request) {
           }
         };
 
+        console.log(`Emitting SMS socket events for device ${deviceId}:`, {
+          smsId: smsData.id,
+          sender: smsData.sender,
+          message: smsData.message?.substring(0, 50) + '...'
+        });
+
         // Emit to device-specific room
         io.to(`device-${deviceId}`).emit('sms-received', smsData);
+        console.log(`Emitted sms-received to device-${deviceId} room`);
 
         // Emit to dashboard for global SMS updates
         io.to('dashboard').emit('sms-received', smsData);
+        console.log(`Emitted sms-received to dashboard room`);
 
         // Update and broadcast SMS stats
         const totalSms = await SmsMessage.countDocuments();
         const receivedSms = await SmsMessage.countDocuments({ sender: { $ne: null } });
 
-        io.to('dashboard').emit('stats-update', {
+        const statsData = {
           totalSms,
           receivedSms,
           type: 'sms',
           deviceId: (device as any).deviceId,
           timestamp: new Date()
-        });
+        };
+
+        io.to('dashboard').emit('stats-update', statsData);
+        console.log(`Emitted stats-update to dashboard:`, statsData);
+      } else {
+        console.warn('Socket.IO not available for SMS notifications');
       }
 
     } catch (socketError) {

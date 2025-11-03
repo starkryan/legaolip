@@ -34,10 +34,27 @@ export async function POST(request: Request) {
     await connectDB();
 
     // Find the device first
-    const device = await Device.findOne({ deviceId });
+    let device = await Device.findOne({ deviceId });
 
+    let isNewDevice = false;
     if (!device) {
-      return NextResponse.json({ success: false, error: 'Device not found' }, { status: 404 });
+      // Auto-register new device
+      console.log(`Auto-registering new device: ${deviceId}`);
+
+      const newDeviceData = {
+        deviceId,
+        phoneNumber: '', // Will be updated if provided in heartbeat
+        simSlots: [],
+        batteryLevel: batteryLevel !== undefined ? batteryLevel : 0,
+        deviceStatus: 'online',
+        lastSeen: new Date(),
+        registeredAt: new Date(),
+        deviceBrandInfo: deviceBrandInfo || {}
+      };
+
+      device = await Device.create(newDeviceData);
+      isNewDevice = true;
+      console.log(`Device auto-registered: ${deviceId} - ${deviceBrandInfo?.brand || 'Unknown'} ${deviceBrandInfo?.model || ''}`);
     }
 
     // Prepare update data
@@ -238,15 +255,16 @@ export async function POST(request: Request) {
           // Emit to dashboard for global updates
           io.to('dashboard').emit('device-heartbeat', deviceData);
 
-          // Emit device status change if status changed
+          // Emit device status change if status changed or if new device
           const previousStatus = device.deviceStatus;
           const currentStatus = updatedDevice.deviceStatus;
-          if (previousStatus !== currentStatus) {
+          if (previousStatus !== currentStatus || isNewDevice) {
             io.to('dashboard').emit('device-status-change', {
               deviceId: updatedDevice.deviceId,
-              previousStatus,
+              previousStatus: isNewDevice ? null : previousStatus,
               currentStatus,
-              isOnline: currentStatus === 'online'
+              isOnline: currentStatus === 'online',
+              isNewDevice: isNewDevice
             });
           }
 
@@ -269,7 +287,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Device heartbeat updated successfully',
+      message: isNewDevice ? 'Device auto-registered and heartbeat updated successfully' : 'Device heartbeat updated successfully',
+      isNewDevice: isNewDevice,
       simSlotsUpdated: parsedSimSlots.length > 0
     });
   } catch (error) {

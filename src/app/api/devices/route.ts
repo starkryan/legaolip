@@ -77,6 +77,7 @@ export async function GET() {
       const actuallyOnline = timeDiff <= offlineThreshold;
 
       return {
+        _id: device._id.toString(),
         deviceId: device.deviceId,
         phoneNumber: combinedPhoneNumbers,
         simSlots: simSlotsData,
