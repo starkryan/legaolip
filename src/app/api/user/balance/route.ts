@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { UserAccount, Transaction, TransactionType } from '@/models';
+import { UserAccount, Transaction, TransactionType, TransactionStatus } from '@/models';
 
 // GET /api/user/balance - Get user balance and account details
 export async function GET(request: NextRequest) {
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       type,
       amount: transactionAmount,
       description,
-      status: 'completed',
+      status: TransactionStatus.COMPLETED,
       balanceBefore,
       balanceAfter,
       metadata: metadata || {}

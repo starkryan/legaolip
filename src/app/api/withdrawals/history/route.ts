@@ -84,12 +84,12 @@ export async function GET(request: NextRequest) {
           updatedAt: request.updatedAt
         })),
         statistics: {
-          totalRequested: withdrawalStats[request.status]?.totalAmount || 0,
-          totalRupees: withdrawalStats[request.status]?.totalRupees || 0,
-          pendingCount: withdrawalStats.pending?.count || 0,
-          approvedCount: withdrawalStats.approved?.count || 0,
-          rejectedCount: withdrawalStats.rejected?.count || 0,
-          processedCount: withdrawalStats.processed?.count || 0
+          totalRequested: withdrawalStats.totalAmount || 0,
+          totalRupees: withdrawalStats.totalRupees || 0,
+          pendingCount: withdrawalStats.byStatus?.pending?.count || 0,
+          approvedCount: withdrawalStats.byStatus?.approved?.count || 0,
+          rejectedCount: withdrawalStats.byStatus?.rejected?.count || 0,
+          processedCount: withdrawalStats.byStatus?.processed?.count || 0
         },
         userAccount: userAccount ? {
           currentBalance: userAccount.currentBalance,

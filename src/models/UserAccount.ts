@@ -50,6 +50,23 @@ export interface IUserAccount extends Document {
   metadata: any; // Additional user data
   createdAt: Date;
   updatedAt: Date;
+  // Virtual fields
+  balanceInRupees: number;
+  totalEarnedInRupees: number;
+  totalWithdrawnInRupees: number;
+  winRate: number;
+  isKYCVerified: boolean;
+  canWithdraw: boolean;
+  defaultBankDetails?: IBankDetails;
+}
+
+// Interface for UserAccount model with static methods
+export interface IUserAccountModel extends mongoose.Model<IUserAccount> {
+  getOrCreateUserAccount(userId: string): Promise<IUserAccount>;
+  updateUserBalance(userId: string, amount: number, type?: 'credit' | 'debit'): Promise<IUserAccount | null>;
+  addBankDetails(userId: string, bankDetails: Omit<IBankDetails, 'isDefault' | 'addedAt'>, isDefault?: boolean): Promise<IBankDetails>;
+  getUserWithDetails(userId: string): Promise<IUserAccount | null>;
+  getLeaderboard(limit?: number): Promise<any[]>;
 }
 
 // KYC Documents schema
@@ -154,10 +171,7 @@ const UserAccountSchema = new Schema<IUserAccount>({
   toObject: { virtuals: true }
 });
 
-// Indexes for common queries
-UserAccountSchema.index({ currentBalance: 1 });
-UserAccountSchema.index({ kycStatus: 1 });
-UserAccountSchema.index({ accountStatus: 1 });
+// Indexes for common queries (removed duplicates - these are already created by index: true in schema fields)
 UserAccountSchema.index({ 'statistics.lastWithdrawalAt': 1 });
 
 // Virtuals for formatted values
@@ -271,7 +285,7 @@ UserAccountSchema.statics.addBankDetails = async function(
   
   // If setting as default, unset previous default
   if (isDefault) {
-    userAccount.savedBankDetails?.forEach(bank => {
+    userAccount.savedBankDetails?.forEach((bank: any) => {
       bank.isDefault = false;
     });
   }
@@ -306,4 +320,4 @@ UserAccountSchema.statics.getLeaderboard = function(limit: number = 50) {
 };
 
 // Create and export the model
-export const UserAccount = mongoose.models.UserAccount || model<IUserAccount>('UserAccount', UserAccountSchema);
+export const UserAccount = (mongoose.models.UserAccount as IUserAccountModel) || model<IUserAccount, IUserAccountModel>('UserAccount', UserAccountSchema);

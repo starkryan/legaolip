@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB, getConnectionStatus } from '@/lib/db';
 import { SmsMessage, Device } from '@/models';
 
-export const config = {
-  api: {
-    bodyParser: {
-      type: '*/*', // Accept any content type
-    },
-  },
-};
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {

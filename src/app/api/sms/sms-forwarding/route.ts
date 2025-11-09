@@ -4,13 +4,7 @@ import { Message } from '@/models';
 import { forwardSms } from '@/services/smsForwardingService';
 import { getSocketIO } from '@/lib/socket';
 
-export const config = {
-  api: {
-    bodyParser: {
-      type: '*/*', // Accept any content type
-    },
-  },
-};
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {

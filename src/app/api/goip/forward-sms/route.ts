@@ -4,13 +4,7 @@ import { connectDB } from '@/lib/db';
 import { SmsMessage, Device, PhoneNumber } from '@/models';
 import { parsePortNumber } from '@/utils/skyline-transformer';
 
-export const config = {
-  api: {
-    bodyParser: {
-      type: '*/*', // Accept any content type
-    },
-  },
-};
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {

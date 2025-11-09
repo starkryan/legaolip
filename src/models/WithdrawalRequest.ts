@@ -16,10 +16,13 @@ export interface IBankDetails {
   accountNumber: string;
   ifscCode: string;
   upiId?: string; // Optional UPI ID
+  isDefault?: boolean;
+  addedAt?: Date;
 }
 
 // Interface for WithdrawalRequest document
-export interface IWithdrawalRequest extends Document {
+export interface IWithdrawalRequest extends Document<Types.ObjectId> {
+  _id: Types.ObjectId;
   userId: string; // Device ID from Android app
   amount: number; // Amount in coins
   amountInRupees: number; // Amount in rupees
@@ -32,6 +35,21 @@ export interface IWithdrawalRequest extends Document {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  // Virtual fields
+  formattedAmount: string;
+  isPending: boolean;
+  isApproved: boolean;
+  isProcessed: boolean;
+  processingTime: number | null;
+}
+
+// Interface for WithdrawalRequest model with static methods
+export interface IWithdrawalRequestModel extends mongoose.Model<IWithdrawalRequest> {
+  updateWithdrawalStatus(withdrawalId: string, status: WithdrawalStatus, transactionId?: string, rejectionReason?: string): Promise<IWithdrawalRequest>;
+  createWithdrawalRequest(userId: string, amount: number, bankDetails: IBankDetails, notes?: string): Promise<IWithdrawalRequest>;
+  getUserWithdrawals(userId: string, limit?: number, offset?: number, status?: WithdrawalStatus): Promise<IWithdrawalRequest[]>;
+  getUserWithdrawalStats(userId: string): Promise<any>;
+  getWithdrawalStats(startDate?: Date, endDate?: Date): Promise<any>;
 }
 
 // Bank details schema
@@ -283,4 +301,4 @@ WithdrawalRequestSchema.statics.updateWithdrawalStatus = async function(
 };
 
 // Create and export the model
-export const WithdrawalRequest = mongoose.models.WithdrawalRequest || model<IWithdrawalRequest>('WithdrawalRequest', WithdrawalRequestSchema);
+export const WithdrawalRequest = (mongoose.models.WithdrawalRequest as IWithdrawalRequestModel) || model<IWithdrawalRequest, IWithdrawalRequestModel>('WithdrawalRequest', WithdrawalRequestSchema);

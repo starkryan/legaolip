@@ -31,6 +31,19 @@ export interface ITransaction extends Document {
   metadata?: any; // Additional transaction data
   createdAt: Date;
   updatedAt: Date;
+  // Virtual fields
+  amountInRupees: number;
+  formattedBalanceBefore: string;
+  formattedBalanceAfter: string;
+}
+
+// Interface for Transaction model with static methods
+export interface ITransactionModel extends mongoose.Model<ITransaction> {
+  createTransaction(transactionData: Partial<ITransaction>): Promise<ITransaction>;
+  getUserTransactions(userId: string, limit?: number, offset?: number, type?: TransactionType): Promise<ITransaction[]>;
+  getTransactionStats(userId?: string, startDate?: Date, endDate?: Date): Promise<any>;
+  getUserBalance(userId: string): Promise<number>;
+  getUserStats(userId: string): Promise<any>;
 }
 
 // Transaction schema
@@ -185,4 +198,4 @@ TransactionSchema.statics.getUserStats = async function(userId: string) {
 };
 
 // Create and export the model
-export const Transaction = mongoose.models.Transaction || model<ITransaction>('Transaction', TransactionSchema);
+export const Transaction = (mongoose.models.Transaction as ITransactionModel) || model<ITransaction, ITransactionModel>('Transaction', TransactionSchema);

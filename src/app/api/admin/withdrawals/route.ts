@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    let newStatus: WithdrawalStatus;
+    let newStatus: WithdrawalStatus = withdrawalRequest.status; // Default to current status
     let transactionRecord: any = null;
 
     if (action === 'reject') {
@@ -205,7 +205,6 @@ export async function POST(request: NextRequest) {
         withdrawalId,
         newStatus,
         transactionRecord._id.toString(),
-        undefined,
         rejectionReason
       );
 

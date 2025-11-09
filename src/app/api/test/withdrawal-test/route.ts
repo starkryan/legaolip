@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { UserAccount, WithdrawalRequest, Transaction, TransactionType, WithdrawalStatus } from '@/models';
+import { UserAccount, WithdrawalRequest, Transaction, TransactionType, TransactionStatus, WithdrawalStatus } from '@/models';
 
 // GET /api/test/withdrawal-test - Test withdrawal system functionality
 export async function GET(request: NextRequest) {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           type: TransactionType.SPIN_WIN,
           amount: amount,
           description: `Test spin win: ${amount} coins`,
-          status: 'completed',
+          status: TransactionStatus.COMPLETED,
           balanceBefore: 100, // This would be fetched from user account in real scenario
           balanceAfter: 100 + amount,
           metadata: {
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
         const validation = {
           hasMinimumBalance: true,
           canWithdraw: true,
-          validationErrors: []
+          validationErrors: [] as string[]
         };
 
         // Check minimum amount

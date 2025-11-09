@@ -3,8 +3,7 @@ import { auth } from '@/lib/auth';
 export const adminAuth = {
   ...auth,
   callbacks: {
-    ...auth.callbacks,
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any; user: any }) {
       // Add role information to JWT token
       if (user) {
         token.role = user.role || 'user';
@@ -12,7 +11,7 @@ export const adminAuth = {
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       // Add role information to session
       if (token) {
         session.user.role = token.role || 'user';
@@ -27,7 +26,7 @@ export const adminAuth = {
 export function validateAdminAccess(session: any): boolean {
   return session?.user?.isAdmin === true ||
          session?.user?.role === 'admin' ||
-         process.env.ADMIN_EMAILS?.includes(session?.user?.email);
+         (process.env.ADMIN_EMAILS?.includes(session?.user?.email) ?? false);
 }
 
 // Middleware helper for admin routes
