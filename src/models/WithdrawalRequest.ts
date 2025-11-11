@@ -11,13 +11,14 @@ export enum WithdrawalStatus {
 
 // Bank details interface
 export interface IBankDetails {
-  bankName: string;
-  accountHolderName: string;
-  accountNumber: string;
-  ifscCode: string;
-  upiId?: string; // Optional UPI ID
+  bankName?: string; // Optional for UPI-only withdrawals
+  accountHolderName?: string; // Optional for UPI-only withdrawals
+  accountNumber?: string; // Optional for UPI-only withdrawals
+  ifscCode?: string; // Optional for UPI-only withdrawals
+  upiId: string; // Required UPI ID for UPI-only withdrawals
   isDefault?: boolean;
   addedAt?: Date;
+  withdrawalType: 'bank' | 'upi'; // Track withdrawal type
 }
 
 // Interface for WithdrawalRequest document
@@ -56,29 +57,30 @@ export interface IWithdrawalRequestModel extends mongoose.Model<IWithdrawalReque
 const BankDetailsSchema = new Schema<IBankDetails>({
   bankName: {
     type: String,
-    required: true,
+    required: false, // Optional for UPI-only withdrawals
     trim: true,
     maxlength: 100
   },
   accountHolderName: {
     type: String,
-    required: true,
+    required: false, // Optional for UPI-only withdrawals
     trim: true,
     maxlength: 100
   },
   accountNumber: {
     type: String,
-    required: true,
+    required: false, // Optional for UPI-only withdrawals
     trim: true,
     maxlength: 50
   },
   ifscCode: {
     type: String,
-    required: true,
+    required: false, // Optional for UPI-only withdrawals
     trim: true,
     uppercase: true,
     validate: {
       validator: function(v: string) {
+        if (!v) return true; // IFSC is optional for UPI withdrawals
         // Basic IFSC code validation (11 characters, 4 letters + 7 digits)
         return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v);
       },
@@ -87,15 +89,21 @@ const BankDetailsSchema = new Schema<IBankDetails>({
   },
   upiId: {
     type: String,
+    required: true, // Required for UPI-only withdrawals
     trim: true,
     validate: {
       validator: function(v: string) {
-        if (!v) return true; // UPI ID is optional
         // Basic UPI ID validation
         return /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/.test(v);
       },
       message: 'Invalid UPI ID format'
     }
+  },
+  withdrawalType: {
+    type: String,
+    required: true,
+    enum: ['bank', 'upi'],
+    default: 'upi'
   }
 }, { _id: false });
 

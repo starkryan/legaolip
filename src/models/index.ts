@@ -12,7 +12,7 @@ export { SmsForwardingConfig } from './SmsForwardingConfig';
 export { Transaction, TransactionType, TransactionStatus } from './Transaction';
 export { WithdrawalRequest, WithdrawalStatus } from './WithdrawalRequest';
 export type { IBankDetails } from './WithdrawalRequest';
-export { UserAccount, UserAccountStatus, KYCStatus } from './UserAccount';
+export { UserAccount, UserAccountStatus } from './UserAccount';
 
 // Export interfaces (these need to be imported properly)
 export type { IDevice } from './Device';

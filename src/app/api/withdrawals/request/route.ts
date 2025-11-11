@@ -8,22 +8,22 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { 
-      deviceId, 
-      amount, 
-      bankName, 
-      accountHolderName, 
-      accountNumber, 
-      ifscCode,
+    const {
+      deviceId,
+      amount,
       upiId,
-      notes 
+      bankName,
+      accountHolderName,
+      accountNumber,
+      ifscCode,
+      notes
     } = body;
 
-    // Validate required fields
-    if (!deviceId || !amount || !bankName || !accountHolderName || !accountNumber || !ifscCode) {
+    // Validate required fields for UPI-only withdrawals
+    if (!deviceId || !amount || !upiId) {
       return NextResponse.json({
         success: false,
-        error: 'Missing required fields: deviceId, amount, bankName, accountHolderName, accountNumber, ifscCode'
+        error: 'Missing required fields: deviceId, amount, upiId'
       }, { status: 400 });
     }
 
@@ -36,19 +36,19 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate IFSC code format
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.toUpperCase())) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid IFSC code format'
-      }, { status: 400 });
-    }
-
-    // Validate UPI ID if provided
-    if (upiId && !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/.test(upiId)) {
+    // Validate UPI ID format (required)
+    if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/.test(upiId)) {
       return NextResponse.json({
         success: false,
         error: 'Invalid UPI ID format'
+      }, { status: 400 });
+    }
+
+    // Validate IFSC code format only if provided (for bank withdrawals)
+    if (ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.toUpperCase())) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid IFSC code format'
       }, { status: 400 });
     }
 
@@ -92,14 +92,73 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Prepare bank details
+    // Prepare withdrawal details (UPI-only)
     const bankDetails = {
-      bankName: bankName.trim(),
-      accountHolderName: accountHolderName.trim(),
-      accountNumber: accountNumber.trim(),
-      ifscCode: ifscCode.toUpperCase().trim(),
-      ...(upiId && { upiId: upiId.trim() })
+      upiId: upiId.trim(),
+      withdrawalType: 'upi' as const,
+      // Optional bank details (not required for UPI withdrawals)
+      ...(bankName && { bankName: bankName.trim() }),
+      ...(accountHolderName && { accountHolderName: accountHolderName.trim() }),
+      ...(accountNumber && { accountNumber: accountNumber.trim() }),
+      ...(ifscCode && { ifscCode: ifscCode.toUpperCase().trim() })
     };
+
+    // Enhanced real-time balance validation (anti-bypass measure)
+    // Refresh user account to get latest balance and prevent race conditions
+    const freshUserAccount = await UserAccount.findOne({ userId: deviceId });
+    if (!freshUserAccount) {
+      return NextResponse.json({
+        success: false,
+        error: 'User account not found during validation'
+      }, { status: 404 });
+    }
+
+    // Double-check balance with fresh data
+    if (freshUserAccount.currentBalance < withdrawalAmount) {
+      return NextResponse.json({
+        success: false,
+        error: 'Insufficient balance - balance changed during request',
+        currentBalance: freshUserAccount.currentBalance,
+        requestedAmount: withdrawalAmount,
+        checkedAt: new Date().toISOString()
+      }, { status: 400 });
+    }
+
+    // Additional security checks
+    if (freshUserAccount.accountStatus !== 'active') {
+      return NextResponse.json({
+        success: false,
+        error: 'Account status changed during request',
+        accountStatus: freshUserAccount.accountStatus
+      }, { status: 403 });
+    }
+
+    // Check for suspicious withdrawal patterns (anti-fraud)
+    const recentWithdrawals = await WithdrawalRequest.find({
+      userId: deviceId,
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+    });
+
+    if (recentWithdrawals.length >= 5) {
+      return NextResponse.json({
+        success: false,
+        error: 'Too many withdrawal requests in 24 hours',
+        recentWithdrawalCount: recentWithdrawals.length,
+        limit: 5
+      }, { status: 429 });
+    }
+
+    // Calculate total withdrawal amount in last 24 hours
+    const totalRecentAmount = recentWithdrawals.reduce((sum, w) => sum + w.amount, 0);
+    if (totalRecentAmount + withdrawalAmount > 50000) { // Max 50,000 coins per day
+      return NextResponse.json({
+        success: false,
+        error: 'Daily withdrawal limit exceeded',
+        totalRecentAmount,
+        requestedAmount: withdrawalAmount,
+        dailyLimit: 50000
+      }, { status: 429 });
+    }
 
     // Create withdrawal request
     const withdrawalRequest = await WithdrawalRequest.createWithdrawalRequest(
@@ -109,8 +168,8 @@ export async function POST(request: NextRequest) {
       notes?.trim()
     );
 
-    // Create transaction record
-    const balanceBefore = userAccount.currentBalance;
+    // Create transaction record with fresh balance data
+    const balanceBefore = freshUserAccount.currentBalance;
     const balanceAfter = balanceBefore - withdrawalAmount;
 
     const transaction = await Transaction.createTransaction({
@@ -156,7 +215,8 @@ export async function POST(request: NextRequest) {
           bankDetails: {
             bankName: withdrawalRequest.bankDetails.bankName,
             accountHolderName: withdrawalRequest.bankDetails.accountHolderName,
-            lastDigits: withdrawalRequest.bankDetails.accountNumber.slice(-4)
+            lastDigits: withdrawalRequest.bankDetails.accountNumber ? withdrawalRequest.bankDetails.accountNumber.slice(-4) : null,
+            upiId: withdrawalRequest.bankDetails.upiId
           },
           createdAt: withdrawalRequest.createdAt
         },

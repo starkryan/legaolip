@@ -2,9 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { WithdrawalRequest, Transaction, UserAccount, WithdrawalStatus, TransactionStatus } from '@/models';
 
+// Simple admin authentication (in production, use proper auth system)
+const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-2024';
+
+function validateAdminAuth(request: NextRequest): boolean {
+  // Check Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader === `Bearer ${ADMIN_KEY}`) {
+    return true;
+  }
+
+  // Check query parameter for easier testing
+  const url = new URL(request.url);
+  const adminKey = url.searchParams.get('adminKey');
+  if (adminKey === ADMIN_KEY) {
+    return true;
+  }
+
+  return false;
+}
+
 // GET /api/admin/withdrawals - Get withdrawal requests for admin
 export async function GET(request: NextRequest) {
   try {
+    // Validate admin authentication
+    if (!validateAdminAuth(request)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Valid admin authentication required'
+      }, { status: 401 });
+    }
+
     await connectDB();
 
     const { searchParams } = new URL(request.url);
@@ -36,7 +65,6 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: status === 'pending' ? 1 : -1 }) // Oldest first for pending
       .limit(limit)
       .skip(offset)
-      .populate('userId', 'deviceId phoneNumber deviceBrandInfo')
       .select('-__v -metadata');
 
     // Get total count
@@ -69,10 +97,10 @@ export async function GET(request: NextRequest) {
         withdrawalRequests: withdrawalRequests.map(request => ({
           id: request._id,
           user: {
-            deviceId: (request.userId as any)?.deviceId,
-            phoneNumber: (request.userId as any)?.phoneNumber,
-            deviceBrand: (request.userId as any)?.deviceBrandInfo?.brand || 'Unknown',
-            model: (request.userId as any)?.deviceBrandInfo?.model || 'Unknown'
+            deviceId: request.userId || 'N/A',
+            phoneNumber: 'N/A', // Would need to fetch from UserAccount
+            deviceBrand: 'Unknown',
+            model: 'Unknown'
           },
           amount: request.amount,
           amountInRupees: request.amountInRupees,
@@ -142,8 +170,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get withdrawal request
-    const withdrawalRequest = await WithdrawalRequest.findById(withdrawalId)
-      .populate('userId', 'deviceId phoneNumber');
+    const withdrawalRequest = await WithdrawalRequest.findById(withdrawalId);
 
     if (!withdrawalRequest) {
       return NextResponse.json({
@@ -174,17 +201,37 @@ export async function POST(request: NextRequest) {
 
       newStatus = WithdrawalStatus.REJECTED;
 
-      // Refund the amount to user balance
+      // Get user account for balance info
       const userAccount = await UserAccount.getOrCreateUserAccount(withdrawalRequest.userId.toString());
       const balanceBefore = userAccount.currentBalance;
       const balanceAfter = balanceBefore + withdrawalRequest.amount;
 
-      // Create refund transaction
+      // Update the original withdrawal transaction to cancel it and refund balance
+      const originalTransaction = await Transaction.findOne({
+        userId: withdrawalRequest.userId.toString(),
+        referenceId: withdrawalRequest._id.toString(),
+        type: 'withdrawal'
+      });
+
+      if (originalTransaction) {
+        // Update the original withdrawal transaction to cancelled status
+        originalTransaction.status = TransactionStatus.CANCELLED;
+        originalTransaction.metadata = {
+          ...originalTransaction.metadata,
+          rejectionReason,
+          adminNotes,
+          cancelledBy: 'admin',
+          cancelledAt: new Date()
+        };
+        await originalTransaction.save();
+      }
+
+      // Create a single refund transaction that handles the balance restoration
       transactionRecord = await Transaction.createTransaction({
         userId: withdrawalRequest.userId.toString(),
         type: 'refund' as any,
         amount: withdrawalRequest.amount,
-        description: `Withdrawal refund: ${withdrawalRequest.amount} coins (₹${withdrawalRequest.amountInRupees})`,
+        description: `Withdrawal cancelled: ${withdrawalRequest.amount} coins refunded`,
         status: TransactionStatus.COMPLETED,
         balanceBefore,
         balanceAfter,
@@ -193,11 +240,12 @@ export async function POST(request: NextRequest) {
           withdrawalRequestId: withdrawalRequest._id,
           rejectionReason,
           adminNotes,
-          refundedBy: 'admin'
+          refundedBy: 'admin',
+          originalTransactionId: originalTransaction?._id?.toString()
         }
       });
 
-      // Update user balance
+      // Update user balance (single update through the transaction system)
       await UserAccount.updateUserBalance(withdrawalRequest.userId.toString(), withdrawalRequest.amount, 'credit');
 
       // Update withdrawal request
@@ -253,8 +301,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get updated withdrawal request
-    const updatedRequest = await WithdrawalRequest.findById(withdrawalId)
-      .populate('userId', 'deviceId phoneNumber');
+    const updatedRequest = await WithdrawalRequest.findById(withdrawalId);
 
     return NextResponse.json({
       success: true,

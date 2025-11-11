@@ -1,92 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/lib/db';
+import { WithdrawalRequest, WithdrawalStatus } from '@/models';
 
 // Simple admin authentication (in production, use proper auth system)
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-2024';
-
-// In-memory storage for withdrawal status (in production, use a database)
-let withdrawalStatusStore: Record<string, any> = {
-  'withdrawal_001': {
-    id: 'withdrawal_001',
-    amount: 100,
-    amountInRupees: 10,
-    formattedAmount: '100 coins (₹10)',
-    status: 'pending',
-    bankDetails: {
-      bankName: 'State Bank of India',
-      accountHolderName: 'Raju Kumar',
-      accountNumber: '****6626',
-      ifscCode: 'SBIN0000001',
-      lastDigits: '6626',
-      upiId: null
-    },
-    user: {
-      deviceId: 'e1368f4eba7a3535',
-      phoneNumber: '+91 98765 43210',
-      currentBalance: 250,
-      balanceInRupees: 25,
-      accountStatus: 'active',
-      kycStatus: 'verified'
-    },
-    notes: null,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    pendingFor: 2,
-    priority: 'normal'
-  },
-  'withdrawal_002': {
-    id: 'withdrawal_002',
-    amount: 500,
-    amountInRupees: 50,
-    formattedAmount: '500 coins (₹50)',
-    status: 'pending',
-    bankDetails: {
-      bankName: 'Punjab National Bank',
-      accountHolderName: 'Amit Singh',
-      accountNumber: '****1234',
-      ifscCode: 'PUNB0000001',
-      lastDigits: '1234',
-      upiId: 'amitsingh@paytm'
-    },
-    user: {
-      deviceId: 'a2b3c4d5e6f7g8h9',
-      phoneNumber: '+91 87654 32109',
-      currentBalance: 750,
-      balanceInRupees: 75,
-      accountStatus: 'active',
-      kycStatus: 'verified'
-    },
-    notes: 'Urgent withdrawal requested',
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-    pendingFor: 6,
-    priority: 'medium'
-  },
-  'withdrawal_003': {
-    id: 'withdrawal_003',
-    amount: 1500,
-    amountInRupees: 150,
-    formattedAmount: '1500 coins (₹150)',
-    status: 'pending',
-    bankDetails: {
-      bankName: 'ICICI Bank',
-      accountHolderName: 'Priya Sharma',
-      accountNumber: '****9876',
-      ifscCode: 'ICIC0000001',
-      lastDigits: '9876',
-      upiId: 'priyasharma@upi'
-    },
-    user: {
-      deviceId: 'f1e2d3c4b5a6987',
-      phoneNumber: '+91 98765 12345',
-      currentBalance: 2000,
-      balanceInRupees: 200,
-      accountStatus: 'active',
-      kycStatus: 'verified'
-    },
-    notes: null,
-    createdAt: new Date(Date.now() - 30 * 60 * 60 * 1000), // 30 hours ago
-    pendingFor: 30,
-    priority: 'high'
-  }
-};
 
 function validateAdminAuth(request: NextRequest): boolean {
   // Check Authorization header
@@ -117,24 +34,72 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Get only pending withdrawals from the store
-    const pendingWithdrawals = Object.values(withdrawalStatusStore).filter(
-      (w: any) => w.status === 'pending'
-    ).map((w: any) => ({
-      ...w,
-      pendingFor: Math.floor((Date.now() - w.createdAt.getTime()) / (1000 * 60 * 60))
-    }));
+    await connectDB();
+
+    // Get pending withdrawals from database
+    const pendingWithdrawals = await WithdrawalRequest.find({
+      status: WithdrawalStatus.PENDING
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    // Format the withdrawals for the admin panel
+    const formattedWithdrawals = pendingWithdrawals.map((withdrawal: any) => {
+      const createdAt = new Date(withdrawal.createdAt);
+      const pendingFor = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60));
+
+      // Determine priority based on amount and pending time
+      let priority = 'normal';
+      if (withdrawal.amount >= 1000 || pendingFor > 48) {
+        priority = 'high';
+      } else if (withdrawal.amount >= 500 || pendingFor > 24) {
+        priority = 'medium';
+      }
+
+      return {
+        id: withdrawal._id.toString(),
+        amount: withdrawal.amount,
+        amountInRupees: withdrawal.amountInRupees,
+        formattedAmount: `${withdrawal.amount} coins (₹${withdrawal.amountInRupees})`,
+        status: withdrawal.status,
+        bankDetails: {
+          bankName: withdrawal.bankDetails?.bankName || 'N/A',
+          accountHolderName: withdrawal.bankDetails?.accountHolderName || 'N/A',
+          accountNumber: withdrawal.bankDetails?.accountNumber ?
+            `****${withdrawal.bankDetails.accountNumber.slice(-4)}` : 'N/A',
+          lastDigits: withdrawal.bankDetails?.accountNumber?.slice(-4) || null,
+          upiId: withdrawal.bankDetails?.upiId || null,
+          withdrawalType: withdrawal.bankDetails?.withdrawalType || 'upi'
+        },
+        user: {
+          deviceId: withdrawal.userId || 'N/A',
+          phoneNumber: 'N/A', // Would need to fetch from UserAccount
+          currentBalance: 0,
+          balanceInRupees: 0,
+          accountStatus: 'active',
+          kycStatus: 'verified'
+        },
+        notes: withdrawal.notes,
+        createdAt: createdAt.toISOString(),
+        pendingFor,
+        priority,
+        transactionId: withdrawal.transactionId,
+        referenceNumber: withdrawal.referenceNumber,
+        rejectionReason: withdrawal.rejectionReason,
+        processedAt: withdrawal.processedAt
+      };
+    });
 
     // Calculate statistics
     const statistics = {
-      totalPending: pendingWithdrawals.length,
-      totalAmount: pendingWithdrawals.reduce((sum: number, w: any) => sum + w.amount, 0),
-      totalRupees: pendingWithdrawals.reduce((sum: number, w: any) => sum + w.amountInRupees, 0),
-      averageAmount: pendingWithdrawals.length > 0 ? 
-        Math.round(pendingWithdrawals.reduce((sum: number, w: any) => sum + w.amount, 0) / pendingWithdrawals.length) : 0,
-      oldestPending: pendingWithdrawals.length > 0 ?
-        Math.min(...pendingWithdrawals.map((w: any) => w.pendingFor)) : 0,
-      priorityBreakdown: pendingWithdrawals.reduce((acc: Record<string, number>, w: any) => {
+      totalPending: formattedWithdrawals.length,
+      totalAmount: formattedWithdrawals.reduce((sum, w) => sum + w.amount, 0),
+      totalRupees: formattedWithdrawals.reduce((sum, w) => sum + w.amountInRupees, 0),
+      averageAmount: formattedWithdrawals.length > 0 ?
+        Math.round(formattedWithdrawals.reduce((sum, w) => sum + w.amount, 0) / formattedWithdrawals.length) : 0,
+      oldestPending: formattedWithdrawals.length > 0 ?
+        Math.min(...formattedWithdrawals.map(w => w.pendingFor)) : 0,
+      priorityBreakdown: formattedWithdrawals.reduce((acc: Record<string, number>, w) => {
         acc[w.priority] = (acc[w.priority] || 0) + 1;
         return acc;
       }, {})
@@ -143,12 +108,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        pendingWithdrawals,
+        pendingWithdrawals: formattedWithdrawals,
         statistics,
         pagination: {
           page: 1,
           limit: 50,
-          total: pendingWithdrawals.length,
+          total: formattedWithdrawals.length,
           pages: 1,
           hasNext: false,
           hasPrev: false
@@ -158,7 +123,7 @@ export async function GET(request: NextRequest) {
           availableSortOrders: ['asc', 'desc']
         }
       },
-      message: `Found ${pendingWithdrawals.length} pending withdrawal requests`
+      message: `Found ${formattedWithdrawals.length} pending withdrawal requests`
     });
 
   } catch (error) {
@@ -183,6 +148,8 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
+    await connectDB();
+
     const body = await request.json();
     const { action, withdrawalId, status, transactionId, referenceNumber, notes } = body;
 
@@ -193,27 +160,40 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Update withdrawal status in the store
-    if (withdrawalStatusStore[withdrawalId]) {
-      withdrawalStatusStore[withdrawalId].status = status || action;
-      
-      if (status === 'approved' || action === 'approve') {
-        withdrawalStatusStore[withdrawalId].transactionId = transactionId;
-        withdrawalStatusStore[withdrawalId].referenceNumber = referenceNumber;
-        withdrawalStatusStore[withdrawalId].notes = notes;
-        withdrawalStatusStore[withdrawalId].approvedAt = new Date().toISOString();
-      } else if (status === 'rejected' || action === 'reject') {
-        withdrawalStatusStore[withdrawalId].rejectionReason = notes;
-        withdrawalStatusStore[withdrawalId].rejectedAt = new Date().toISOString();
-      }
+    // Update withdrawal status in the database
+    const updateData: any = {};
+
+    if (status === 'approved' || action === 'approve') {
+      updateData.status = WithdrawalStatus.APPROVED;
+      updateData.transactionId = transactionId;
+      updateData.referenceNumber = referenceNumber;
+      updateData.notes = notes;
+      updateData.processedAt = new Date();
+    } else if (status === 'rejected' || action === 'reject') {
+      updateData.status = WithdrawalStatus.REJECTED;
+      updateData.rejectionReason = notes;
+      updateData.processedAt = new Date();
+    }
+
+    const updatedWithdrawal = await WithdrawalRequest.findByIdAndUpdate(
+      withdrawalId,
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedWithdrawal) {
+      return NextResponse.json({
+        success: false,
+        error: 'Withdrawal request not found'
+      }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
       data: {
         withdrawalId,
-        status: status || action,
-        message: `Withdrawal ${status || action} successfully`
+        status: updateData.status,
+        message: `Withdrawal ${updateData.status} successfully`
       }
     });
 

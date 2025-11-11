@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { UserAccount, Transaction, TransactionType, TransactionStatus } from '@/models';
+import { UserAccount } from '@/models';
+import { Transaction, TransactionType, TransactionStatus } from '@/models';
 
-// GET /api/user/balance - Get user balance and account details
+// GET /api/user/balance - Get user's real-time balance
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -13,24 +14,43 @@ export async function GET(request: NextRequest) {
     if (!deviceId) {
       return NextResponse.json({
         success: false,
-        error: 'deviceId is required'
+        error: 'Device ID is required'
       }, { status: 400 });
     }
 
     // Get or create user account
     const userAccount = await UserAccount.getOrCreateUserAccount(deviceId);
 
-    // Get recent transactions for context
-    const recentTransactions = await Transaction.getUserTransactions(deviceId, 5, 0);
+    // Get recent transactions
+    const recentTransactions = await Transaction.getUserTransactions(
+      deviceId,
+      10 // Last 10 transactions
+    );
 
     // Get transaction statistics
     const transactionStats = await Transaction.getUserStats(deviceId);
 
-    // Check for pending withdrawal
-    const { WithdrawalRequest } = await import('@/models');
-    const pendingWithdrawal = await WithdrawalRequest.findOne({
-      userId: deviceId,
-      status: 'pending'
+    // Calculate recent transaction statistics
+    const recentStats = {
+      earned: 0,
+      spent: 0,
+      withdrawn: 0,
+      won: 0
+    };
+
+    recentTransactions.forEach(tx => {
+      if (tx.type === TransactionType.EARNING || tx.type === TransactionType.SPIN_WIN || tx.type === TransactionType.BONUS) {
+        recentStats.earned += tx.amount;
+      }
+      if (tx.type === TransactionType.SPIN_COST) {
+        recentStats.spent += tx.amount;
+      }
+      if (tx.type === TransactionType.WITHDRAWAL) {
+        recentStats.withdrawn += tx.amount;
+      }
+      if (tx.type === TransactionType.SPIN_WIN) {
+        recentStats.won += tx.amount;
+      }
     });
 
     return NextResponse.json({
@@ -47,55 +67,42 @@ export async function GET(request: NextRequest) {
           totalWithdrawn: userAccount.totalWithdrawn,
           totalWithdrawnInRupees: userAccount.totalWithdrawnInRupees,
           totalSpent: userAccount.totalSpent,
-          winRate: userAccount.winRate,
-          totalSpins: userAccount.statistics.totalSpins,
           totalWins: userAccount.statistics.totalWins,
-          biggestWin: userAccount.statistics.biggestWin,
-          withdrawalCount: userAccount.statistics.withdrawalCount
+          totalSpins: userAccount.statistics.totalSpins,
+          winRate: userAccount.winRate,
+          biggestWin: userAccount.statistics.biggestWin
         },
         accountStatus: {
           status: userAccount.accountStatus,
-          kycStatus: userAccount.kycStatus,
-          canWithdraw: userAccount.canWithdraw,
-          isKYCVerified: userAccount.isKYCVerified
+          canWithdraw: userAccount.canWithdraw
         },
         transactions: {
-          recent: recentTransactions.map(t => ({
-            id: t._id,
-            type: t.type,
-            amount: t.amount,
-            description: t.description,
-            createdAt: t.createdAt
+          recent: recentTransactions.map((tx: any) => ({
+            id: (tx._id as any).toString(),
+            type: tx.type,
+            amount: tx.amount,
+            amountInRupees: tx.amountInRupees,
+            description: tx.description,
+            createdAt: tx.createdAt
           })),
-          statistics: {
-            earned: transactionStats.earning?.totalAmount || 0,
-            spent: transactionStats.spin_cost?.totalAmount || 0,
-            withdrawn: transactionStats.withdrawal?.totalAmount || 0,
-            won: transactionStats.spin_win?.totalAmount || 0
-          }
+          statistics: recentStats
         },
         withdrawalStatus: {
-          hasPendingWithdrawal: !!pendingWithdrawal,
-          pendingWithdrawal: pendingWithdrawal ? {
-            id: pendingWithdrawal._id,
-            amount: pendingWithdrawal.amount,
-            amountInRupees: pendingWithdrawal.amountInRupees,
-            status: pendingWithdrawal.status,
-            createdAt: pendingWithdrawal.createdAt
-          } : null
+          hasPendingWithdrawal: false,
+          pendingWithdrawal: null
         },
-        bankDetails: userAccount.defaultBankDetails ? {
-          bankName: userAccount.defaultBankDetails.bankName,
-          accountHolderName: userAccount.defaultBankDetails.accountHolderName,
-          lastDigits: userAccount.defaultBankDetails.accountNumber.slice(-4),
-          upiId: userAccount.defaultBankDetails.upiId
-        } : null,
-        preferences: userAccount.preferences
-      }
+        bankDetails: null,
+        preferences: {
+          defaultBankIndex: null,
+          notifications: true,
+          autoSaveBankDetails: true
+        }
+      },
+      message: 'Balance retrieved successfully'
     });
 
   } catch (error) {
-    console.error('Get user balance error:', error);
+    console.error('Get balance error:', error);
     return NextResponse.json({
       success: false,
       error: 'Internal server error',
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/user/balance - Update user balance (for admin use or game events)
+// POST /api/user/balance - Update user balance (for rewards, penalties, etc.)
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
@@ -112,100 +119,108 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { deviceId, amount, type, description, metadata } = body;
 
-    if (!deviceId || !amount || !type || !description) {
+    // Validate required fields
+    if (!deviceId || amount === undefined || !type || !description) {
       return NextResponse.json({
         success: false,
         error: 'Missing required fields: deviceId, amount, type, description'
       }, { status: 400 });
     }
 
-    // Validate amount
-    const transactionAmount = parseInt(amount);
-    if (isNaN(transactionAmount) || transactionAmount <= 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid amount'
-      }, { status: 400 });
-    }
-
-    // Validate transaction type
-    if (!Object.values(TransactionType).includes(type)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid transaction type'
-      }, { status: 400 });
-    }
-
     // Get user account
-    const userAccount = await UserAccount.getOrCreateUserAccount(deviceId);
+    const userAccount = await UserAccount.findOne({ userId: deviceId });
+    if (!userAccount) {
+      return NextResponse.json({
+        success: false,
+        error: 'User account not found'
+      }, { status: 404 });
+    }
 
-    // Check if user has sufficient balance for debit transactions
-    if ((type === TransactionType.WITHDRAWAL || type === TransactionType.SPIN_COST) && 
-        userAccount.currentBalance < transactionAmount) {
+    // Get current balance from transactions (more reliable than UserAccount balance)
+    const currentBalance = await Transaction.getUserBalance(deviceId);
+
+    // Calculate updated balance
+    const updatedBalance = (type === 'spin_win' || type === 'earning' || type === 'bonus')
+      ? currentBalance + amount
+      : currentBalance - amount;
+
+    // Validate balance for debit operations
+    if ((type === 'withdrawal' || type === 'spin_cost') && currentBalance < amount) {
       return NextResponse.json({
         success: false,
         error: 'Insufficient balance',
-        currentBalance: userAccount.currentBalance,
-        requiredAmount: transactionAmount
+        currentBalance,
+        requestedAmount: amount
       }, { status: 400 });
     }
 
-    // Create transaction
-    const balanceBefore = userAccount.currentBalance;
-    const balanceAfter = type === TransactionType.WITHDRAWAL || type === TransactionType.SPIN_COST
-      ? balanceBefore - transactionAmount
-      : balanceBefore + transactionAmount;
-
+    // Create transaction record
     const transaction = await Transaction.createTransaction({
       userId: deviceId,
-      type,
-      amount: transactionAmount,
+      type: type === 'spin_win' ? TransactionType.SPIN_WIN :
+            type === 'spin_cost' ? TransactionType.SPIN_COST :
+            type === 'withdrawal' ? TransactionType.WITHDRAWAL :
+            type === 'earning' ? TransactionType.EARNING :
+            type === 'bonus' ? TransactionType.BONUS :
+            TransactionType.EARNING, // default to earning
+      amount,
       description,
+      balanceBefore: currentBalance,
+      balanceAfter: updatedBalance,
       status: TransactionStatus.COMPLETED,
-      balanceBefore,
-      balanceAfter,
       metadata: metadata || {}
     });
 
-    // Update user balance
-    await UserAccount.updateUserBalance(deviceId, transactionAmount, 
-      type === TransactionType.WITHDRAWAL || type === TransactionType.SPIN_COST ? 'debit' : 'credit'
-    );
-
-    // Update user statistics for specific transaction types
-    if (type === TransactionType.SPIN_WIN) {
-      userAccount.statistics.totalWins += 1;
-      if (transactionAmount > userAccount.statistics.biggestWin) {
-        userAccount.statistics.biggestWin = transactionAmount;
-      }
-      userAccount.statistics.lastSpinAt = new Date();
-    } else if (type === TransactionType.SPIN_COST) {
-      userAccount.statistics.totalSpins += 1;
-      userAccount.statistics.lastSpinAt = new Date();
+    // Update UserAccount balance (keep in sync)
+    if (type === 'spin_win' || type === 'earning' || type === 'bonus') {
+      await UserAccount.updateUserBalance(deviceId, amount, 'credit');
+    } else if (type === 'spin_cost' || type === 'withdrawal') {
+      await UserAccount.updateUserBalance(deviceId, amount, 'debit');
     }
 
-    await userAccount.save();
+    // Update user statistics if this is a spin-related transaction
+    if (type === 'spin_cost' || type === 'spin_win') {
+      await UserAccount.updateOne(
+        { userId: deviceId },
+        {
+          $inc: {
+            'statistics.totalSpins': 1
+          },
+          ...(type === 'spin_win' && {
+            $inc: {
+              'statistics.totalWins': 1,
+              'statistics.biggestWin': Math.max(0, amount - (userAccount.statistics.biggestWin || 0))
+            }
+          }),
+          'statistics.lastSpinAt': new Date()
+        }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       data: {
         transaction: {
-          id: transaction._id,
+          id: (transaction._id as any).toString(),
           type: transaction.type,
           amount: transaction.amount,
           description: transaction.description,
-          balanceBefore,
-          balanceAfter,
-          createdAt: transaction.createdAt
+          balanceBefore: transaction.balanceBefore,
+          balanceAfter: transaction.balanceAfter
         },
-        newBalance: balanceAfter,
-        previousBalance: balanceBefore
+        newBalance: updatedBalance,
+        previousBalance: currentBalance,
+        userStats: {
+          totalSpins: userAccount.statistics.totalSpins + (type === 'spin_cost' ? 1 : 0),
+          totalWins: userAccount.statistics.totalWins + (type === 'spin_win' ? 1 : 0),
+          currentBalance: updatedBalance
+        }
       },
       message: 'Balance updated successfully'
     });
 
   } catch (error) {
-    console.error('Update user balance error:', error);
+    console.error('Update balance error:', error);
     return NextResponse.json({
       success: false,
       error: 'Internal server error',

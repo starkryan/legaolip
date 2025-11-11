@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           bankDetails: {
             bankName: request.bankDetails.bankName,
             accountHolderName: request.bankDetails.accountHolderName,
-            lastDigits: request.bankDetails.accountNumber.slice(-4),
+            lastDigits: request.bankDetails.accountNumber ? request.bankDetails.accountNumber.slice(-4) : null,
             upiId: request.bankDetails.upiId
           },
           transactionId: request.transactionId,
@@ -97,11 +97,10 @@ export async function GET(request: NextRequest) {
           totalWithdrawn: userAccount.totalWithdrawn,
           totalWithdrawnInRupees: userAccount.totalWithdrawnInRupees,
           canWithdraw: userAccount.canWithdraw,
-          kycStatus: userAccount.kycStatus,
           savedBankDetails: userAccount.savedBankDetails?.map(bank => ({
             bankName: bank.bankName,
             accountHolderName: bank.accountHolderName,
-            lastDigits: bank.accountNumber.slice(-4),
+            lastDigits: bank.accountNumber ? bank.accountNumber.slice(-4) : null,
             isDefault: bank.isDefault,
             addedAt: bank.addedAt
           }))

@@ -8,13 +8,7 @@ export enum UserAccountStatus {
   BLOCKED = 'blocked'
 }
 
-// KYC status
-export enum KYCStatus {
-  NOT_VERIFIED = 'not_verified',
-  PENDING = 'pending',
-  VERIFIED = 'verified',
-  REJECTED = 'rejected'
-}
+
 
 // Interface for UserAccount document
 export interface IUserAccount extends Document {
@@ -24,15 +18,6 @@ export interface IUserAccount extends Document {
   totalWithdrawn: number; // Total coins withdrawn
   totalSpent: number; // Total coins spent on spins
   accountStatus: UserAccountStatus;
-  kycStatus: KYCStatus;
-  kycDocuments?: {
-    aadhaarCard?: string; // URL to stored document
-    panCard?: string; // URL to stored document
-    bankStatement?: string; // URL to stored document
-    submittedAt?: Date;
-    verifiedAt?: Date;
-    rejectedReason?: string;
-  };
   savedBankDetails?: IBankDetails[]; // Multiple bank accounts
   preferences: {
     defaultBankIndex?: number;
@@ -55,7 +40,6 @@ export interface IUserAccount extends Document {
   totalEarnedInRupees: number;
   totalWithdrawnInRupees: number;
   winRate: number;
-  isKYCVerified: boolean;
   canWithdraw: boolean;
   defaultBankDetails?: IBankDetails;
 }
@@ -69,15 +53,7 @@ export interface IUserAccountModel extends mongoose.Model<IUserAccount> {
   getLeaderboard(limit?: number): Promise<any[]>;
 }
 
-// KYC Documents schema
-const KYCDocumentsSchema = new Schema({
-  aadhaarCard: { type: String }, // URL to stored document
-  panCard: { type: String }, // URL to stored document
-  bankStatement: { type: String }, // URL to stored document
-  submittedAt: { type: Date },
-  verifiedAt: { type: Date },
-  rejectedReason: { type: String, trim: true, maxlength: 500 }
-}, { _id: false });
+
 
 // User preferences schema
 const UserPreferencesSchema = new Schema({
@@ -133,22 +109,12 @@ const UserAccountSchema = new Schema<IUserAccount>({
     default: UserAccountStatus.ACTIVE,
     index: true
   },
-  kycStatus: {
-    type: String,
-    enum: Object.values(KYCStatus),
-    default: KYCStatus.NOT_VERIFIED,
-    index: true
-  },
-  kycDocuments: {
-    type: KYCDocumentsSchema,
-    default: {}
-  },
   savedBankDetails: [{
-    bankName: { type: String, required: true, trim: true, maxlength: 100 },
-    accountHolderName: { type: String, required: true, trim: true, maxlength: 100 },
-    accountNumber: { type: String, required: true, trim: true, maxlength: 50 },
-    ifscCode: { type: String, required: true, trim: true, uppercase: true, maxlength: 11 },
-    upiId: { type: String, trim: true },
+    bankName: { type: String, required: false, trim: true, maxlength: 100 }, // Optional for UPI-only withdrawals
+    accountHolderName: { type: String, required: false, trim: true, maxlength: 100 }, // Optional for UPI-only withdrawals
+    accountNumber: { type: String, required: false, trim: true, maxlength: 50 }, // Optional for UPI-only withdrawals
+    ifscCode: { type: String, required: false, trim: true, uppercase: true, maxlength: 11 }, // Optional for UPI-only withdrawals
+    upiId: { type: String, required: false, trim: true }, // Optional for bank-only withdrawals
     isDefault: { type: Boolean, default: false },
     addedAt: { type: Date, default: Date.now }
   }],
@@ -192,14 +158,9 @@ UserAccountSchema.virtual('winRate').get(function() {
   return (this.statistics.totalWins / this.statistics.totalSpins) * 100;
 });
 
-UserAccountSchema.virtual('isKYCVerified').get(function() {
-  return this.kycStatus === KYCStatus.VERIFIED;
-});
-
 UserAccountSchema.virtual('canWithdraw').get(function() {
-  return this.accountStatus === UserAccountStatus.ACTIVE && 
-         this.currentBalance >= 100 &&
-         this.kycStatus === KYCStatus.VERIFIED;
+  return this.accountStatus === UserAccountStatus.ACTIVE &&
+         this.currentBalance >= 100;
 });
 
 UserAccountSchema.virtual('defaultBankDetails').get(function() {
@@ -261,14 +222,26 @@ UserAccountSchema.statics.updateUserBalance = async function(
   amount: number,
   type: 'credit' | 'debit' = 'credit'
 ) {
-  const updateData = type === 'credit' 
+  const updateData = type === 'credit'
     ? { $inc: { currentBalance: amount } }
     : { $inc: { currentBalance: -amount } };
-  
+
+  // Find the user account first to ensure it exists
+  const userAccount = await this.findOne({ userId, accountStatus: UserAccountStatus.ACTIVE });
+  if (!userAccount) {
+    throw new Error(`User account not found or inactive for userId: ${userId}`);
+  }
+
+  // Check if balance would go negative for debit operations
+  if (type === 'debit' && userAccount.currentBalance < amount) {
+    throw new Error(`Insufficient balance. Current: ${userAccount.currentBalance}, Required: ${amount}`);
+  }
+
+  // Update the balance
   return await this.findOneAndUpdate(
     { userId, accountStatus: UserAccountStatus.ACTIVE },
     updateData,
-    { new: true, upsert: true }
+    { new: true } // Removed upsert: true to prevent creating new accounts
   );
 };
 

@@ -78,6 +78,7 @@ export function WithdrawalManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,11 +98,44 @@ export function WithdrawalManagement() {
   const fetchWithdrawals = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/withdrawals/pending?adminKey=admin-secret-key-2024&t=${refreshKey}`);
+      const response = await fetch(`/api/admin/withdrawals?adminKey=admin-secret-key-2024&t=${refreshKey}`);
       const data = await response.json();
 
       if (data.success) {
-        setWithdrawals(data.data.pendingWithdrawals || []);
+        // Format the withdrawal data to match the component interface
+        const formattedWithdrawals = data.data.withdrawalRequests.map((request: any) => ({
+          id: request.id,
+          amount: request.amount,
+          amountInRupees: request.amountInRupees,
+          formattedAmount: `${request.amount} coins (₹${request.amountInRupees})`,
+          status: request.status,
+          bankDetails: {
+            bankName: request.bankDetails?.bankName || 'N/A',
+            accountHolderName: request.bankDetails?.accountHolderName || 'N/A',
+            accountNumber: request.bankDetails?.accountNumber ?
+              `****${request.bankDetails.accountNumber.slice(-4)}` : 'N/A',
+            lastDigits: request.bankDetails?.accountNumber?.slice(-4) || request.bankDetails?.upiId || null,
+            upiId: request.bankDetails?.upiId || null,
+            withdrawalType: request.bankDetails?.withdrawalType || 'upi'
+          },
+          user: {
+            deviceId: request.user.deviceId,
+            phoneNumber: request.user.phoneNumber,
+            currentBalance: 0,
+            balanceInRupees: 0,
+            accountStatus: 'active',
+            kycStatus: 'verified'
+          },
+          notes: request.notes,
+          createdAt: request.createdAt,
+          pendingFor: Math.floor((Date.now() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60)),
+          priority: request.amount >= 1000 ? 'high' : request.amount >= 500 ? 'medium' : 'normal',
+          transactionId: request.transactionId,
+          referenceNumber: request.referenceNumber,
+          rejectionReason: request.rejectionReason,
+          processedAt: request.processedAt
+        }));
+        setWithdrawals(formattedWithdrawals);
       }
     } catch (error) {
       console.error('Error fetching withdrawals:', error);
@@ -114,17 +148,17 @@ export function WithdrawalManagement() {
     if (!selectedWithdrawal) return;
 
     try {
-      const response = await fetch('/api/admin/withdrawals/approve', {
+      const response = await fetch('/api/admin/withdrawals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-secret-key-2024',
         },
         body: JSON.stringify({
           withdrawalId: selectedWithdrawal.id,
+          action: 'approve',
           transactionId,
           referenceNumber,
-          notes: approveNotes,
+          adminNotes: approveNotes,
         }),
       });
 
@@ -154,16 +188,16 @@ export function WithdrawalManagement() {
     if (!selectedWithdrawal) return;
 
     try {
-      const response = await fetch('/api/admin/withdrawals/reject', {
+      const response = await fetch('/api/admin/withdrawals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer admin-secret-key-2024',
         },
         body: JSON.stringify({
           withdrawalId: selectedWithdrawal.id,
+          action: 'reject',
           rejectionReason,
-          notes: 'Rejected via admin dashboard',
+          adminNotes: 'Rejected via admin dashboard',
         }),
       });
 
@@ -348,7 +382,7 @@ export function WithdrawalManagement() {
       {/* Withdrawals Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Pending Withdrawals</CardTitle>
+          <CardTitle>All Withdrawals</CardTitle>
           <CardDescription>
             {filteredWithdrawals.length} withdrawal requests found
           </CardDescription>
@@ -398,11 +432,20 @@ export function WithdrawalManagement() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{withdrawal.bankDetails.accountHolderName}</p>
-                          <p className="text-sm text-gray-500">{withdrawal.bankDetails.bankName}</p>
-                          <p className="text-sm text-gray-500">
-                            ****{withdrawal.bankDetails.lastDigits}
-                          </p>
+                          {withdrawal.bankDetails.upiId ? (
+                            <>
+                              <p className="font-medium">UPI: {withdrawal.bankDetails.upiId}</p>
+                              <p className="text-sm text-gray-500">{withdrawal.bankDetails.accountHolderName}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium">{withdrawal.bankDetails.accountHolderName}</p>
+                              <p className="text-sm text-gray-500">{withdrawal.bankDetails.bankName}</p>
+                              <p className="text-sm text-gray-500">
+                                ****{withdrawal.bankDetails.lastDigits}
+                              </p>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -421,7 +464,10 @@ export function WithdrawalManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedWithdrawal(withdrawal)}
+                            onClick={() => {
+                              setSelectedWithdrawal(withdrawal);
+                              setViewDialogOpen(true);
+                            }}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
@@ -469,6 +515,11 @@ export function WithdrawalManagement() {
             <DialogTitle>Approve Withdrawal</DialogTitle>
             <DialogDescription>
               Approve withdrawal request for {selectedWithdrawal?.formattedAmount}
+              {selectedWithdrawal?.bankDetails?.upiId && (
+                <span className="block text-sm text-gray-600 mt-1">
+                  UPI: {selectedWithdrawal.bankDetails.upiId}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -545,6 +596,200 @@ export function WithdrawalManagement() {
             <Button variant="destructive" onClick={handleReject}>
               Reject Withdrawal
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Withdrawal Details</DialogTitle>
+            <DialogDescription>
+              Complete details for withdrawal request {selectedWithdrawal?.formattedAmount}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {selectedWithdrawal && (
+              <>
+                {/* Status and Priority */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">Status:</span>
+                    {getStatusBadge(selectedWithdrawal.status)}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">Priority:</span>
+                    {getPriorityBadge(selectedWithdrawal.priority)}
+                  </div>
+                </div>
+
+                {/* User Information */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-3">User Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Device ID:</span>
+                      <p className="font-mono text-xs break-all">{selectedWithdrawal.user.deviceId}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Phone Number:</span>
+                      <p>{selectedWithdrawal.user.phoneNumber || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Current Balance:</span>
+                      <p>{selectedWithdrawal.user.currentBalance} coins</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Account Status:</span>
+                      <p>{selectedWithdrawal.user.accountStatus}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount Information */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-3">Amount Information</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Coins:</span>
+                      <p className="text-lg font-semibold">{selectedWithdrawal.amount} coins</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Rupees:</span>
+                      <p className="text-lg font-semibold">₹{selectedWithdrawal.amountInRupees}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Pending For:</span>
+                      <p>{selectedWithdrawal.pendingFor} hours</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Created:</span>
+                      <p>{new Date(selectedWithdrawal.createdAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Details */}
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-3">Payment Details</h3>
+                  {selectedWithdrawal.bankDetails.upiId ? (
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Payment Method:</span>
+                        <p className="font-medium">UPI Transfer</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">UPI ID:</span>
+                        <p className="font-mono font-medium">{selectedWithdrawal.bankDetails.upiId}</p>
+                      </div>
+                      {selectedWithdrawal.bankDetails.accountHolderName && (
+                        <div>
+                          <span className="text-gray-500">Account Holder:</span>
+                          <p>{selectedWithdrawal.bankDetails.accountHolderName}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Bank Name:</span>
+                        <p className="font-medium">{selectedWithdrawal.bankDetails.bankName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Account Holder:</span>
+                        <p>{selectedWithdrawal.bankDetails.accountHolderName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Account Number:</span>
+                        <p className="font-mono">{selectedWithdrawal.bankDetails.accountNumber}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Last 4 Digits:</span>
+                        <p className="font-mono">****{selectedWithdrawal.bankDetails.lastDigits}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Processing Details */}
+                {(selectedWithdrawal.transactionId || selectedWithdrawal.referenceNumber || selectedWithdrawal.processedAt) && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Processing Details</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                      {selectedWithdrawal.transactionId && (
+                        <div>
+                          <span className="text-gray-500">Transaction ID:</span>
+                          <p className="font-mono text-xs break-all">{selectedWithdrawal.transactionId}</p>
+                        </div>
+                      )}
+                      {selectedWithdrawal.referenceNumber && (
+                        <div>
+                          <span className="text-gray-500">Reference Number:</span>
+                          <p className="font-mono text-xs break-all">{selectedWithdrawal.referenceNumber}</p>
+                        </div>
+                      )}
+                      {selectedWithdrawal.processedAt && (
+                        <div>
+                          <span className="text-gray-500">Processed At:</span>
+                          <p>{new Date(selectedWithdrawal.processedAt).toLocaleString()}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes and Rejection Reason */}
+                {(selectedWithdrawal.notes || selectedWithdrawal.rejectionReason) && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Additional Information</h3>
+                    {selectedWithdrawal.notes && (
+                      <div className="mb-3">
+                        <span className="text-gray-500 text-sm">Notes:</span>
+                        <p className="text-sm mt-1">{selectedWithdrawal.notes}</p>
+                      </div>
+                    )}
+                    {selectedWithdrawal.rejectionReason && (
+                      <div>
+                        <span className="text-gray-500 text-sm">Rejection Reason:</span>
+                        <p className="text-sm mt-1 text-red-600">{selectedWithdrawal.rejectionReason}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+              Close
+            </Button>
+            {selectedWithdrawal?.status === 'pending' && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    setApproveDialogOpen(true);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Approve
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    setRejectDialogOpen(true);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Reject
+                </Button>
+              </div>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

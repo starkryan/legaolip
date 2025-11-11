@@ -1,0 +1,466 @@
+
+> goip-frontend@0.1.0 dev
+> next dev
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /home/neo/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /home/neo/AndroidStudioProjects/EarnbySMS/goip-fullstack/package-lock.json
+
+   ▲ Next.js 16.0.1 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.8:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 444ms
+Socket.IO is initializing
+Socket.IO server initialized successfully
+ GET /api/socket/io?EIO=4&transport=polling&t=bii9vyqp 200 in 144ms (compile: 140ms, render: 4ms)
+ GET /dashboard 200 in 1775ms (compile: 1548ms, render: 227ms)
+ GET /admin 200 in 1773ms (compile: 1675ms, render: 99ms)
+Client connected: udd28GrXcqKm0IabAAAB
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Attempting to connect to MongoDB: mongodb://127.0.0.1:27017/goip_messages?directConnection=true
+ GET /api/admin/stats 200 in 131ms (compile: 126ms, render: 6ms)
+MongoDB connection already in progress, waiting...
+Connected to MongoDB successfully
+Connection details: { host: '127.0.0.1', port: 27017, name: 'goip_messages' }
+ GET /api/admin/withdrawals/pending?adminKey=admin-secret-key-2024&t=0 200 in 50ms (compile: 47ms, render: 3ms)
+ GET /api/admin/withdrawals/pending?adminKey=admin-secret-key-2024&t=0 200 in 71ms (compile: 68ms, render: 3ms)
+Returning 1 devices
+ GET /api/devices 200 in 280ms (compile: 191ms, render: 89ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+MongoDB models and indexes initialized successfully
+ GET /api/sms 200 in 306ms (compile: 151ms, render: 155ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/auth/get-session 200 in 876ms (compile: 861ms, render: 15ms)
+Client connected: gvmb7r2r88CuvPrMAAAE
+ POST /api/withdrawals/request 400 in 61ms (compile: 55ms, render: 7ms)
+ GET /api/admin/stats 200 in 5ms (compile: 2ms, render: 3ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 32% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 67ms (compile: 49ms, render: 18ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ POST /api/withdrawals/request 400 in 4ms (compile: 1169µs, render: 3ms)
+Failed to save bank details: Error: UserAccount validation failed: savedBankDetails.0.ifscCode: Path `ifscCode` is required., savedBankDetails.0.accountNumber: Path `accountNumber` is required., savedBankDetails.0.accountHolderName: Path `accountHolderName` is required., savedBankDetails.0.bankName: Path `bankName` is required.
+    at POST (src/app/api/withdrawals/request/route.ts:146:15)
+  144 |       await UserAccount.addBankDetails(deviceId, bankDetails, true);
+  145 |     } catch (bankError) {
+> 146 |       console.warn('Failed to save bank details:', bankError);
+      |               ^
+  147 |       // Don't fail the withdrawal if bank details saving fails
+  148 |     }
+  149 | {
+  errors: [Object],
+  _message: 'UserAccount validation failed'
+}
+Withdrawal request error: TypeError: Cannot read properties of undefined (reading 'slice')
+    at POST (src/app/api/withdrawals/request/route.ts:161:69)
+  159 |             bankName: withdrawalRequest.bankDetails.bankName,
+  160 |             accountHolderName: withdrawalRequest.bankDetails.accountHolderName,
+> 161 |             lastDigits: withdrawalRequest.bankDetails.accountNumber.slice(-4)
+      |                                                                     ^
+  162 |           },
+  163 |           createdAt: withdrawalRequest.createdAt
+  164 |         },
+ POST /api/withdrawals/request 500 in 284ms (compile: 900µs, render: 283ms)
+ GET /api/admin/stats 200 in 4ms (compile: 1613µs, render: 2ms)
+Attempting to connect to MongoDB: mongodb://127.0.0.1:27017/goip_messages?directConnection=true
+Connected to MongoDB successfully
+Connection details: { host: '127.0.0.1', port: 27017, name: 'goip_messages' }
+MongoDB models and indexes initialized successfully
+ POST /api/withdrawals/request 400 in 47ms (compile: 25ms, render: 22ms)
+ GET /api/admin/stats 200 in 3ms (compile: 983µs, render: 1685µs)
+Device heartbeat: e1368f4eba7a3535 - Battery: 32% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 13ms (compile: 1012µs, render: 12ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 2ms (compile: 997µs, render: 1476µs)
+ GET /api/admin/stats 200 in 4ms (compile: 1695µs, render: 2ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1065µs, render: 1514µs)
+ GET /api/admin/stats 200 in 3ms (compile: 1646µs, render: 1413µs)
+ GET /api/admin/stats 200 in 3ms (compile: 1343µs, render: 2ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1257µs, render: 1428µs)
+ GET /api/admin/stats 200 in 3ms (compile: 1009µs, render: 2ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1301µs, render: 2ms)
+Device registration: e1368f4eba7a3535 - samsung SM-A035F
+Processing 2 SIM slots for device e1368f4eba7a3535
+Bulk phone number operations completed: { matched: 2, upserted: 0, modified: 2 }
+Device registered: e1368f4eba7a3535 - +919334198143, +917501359430
+ GET /api/user/balance?deviceId=e1368f4eba7a3535 200 in 75ms (compile: 48ms, render: 27ms)
+Device registered: e1368f4eba7a3535 (samsung SM-A035F)
+ POST /api/device/register 200 in 73ms (compile: 54ms, render: 18ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Device heartbeat: e1368f4eba7a3535 - Battery: 32% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 13ms (compile: 1207µs, render: 12ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 50ms (compile: 43ms, render: 7ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 53ms (compile: 46ms, render: 7ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1067µs, render: 6ms)
+ GET /api/admin/stats 200 in 2ms (compile: 958µs, render: 1303µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 6ms (compile: 939µs, render: 5ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 916µs, render: 6ms)
+ GET /api/admin/stats 200 in 2ms (compile: 1049µs, render: 1412µs)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 931µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 923µs, render: 6ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 32% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 11ms (compile: 934µs, render: 10ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 8ms (compile: 1006µs, render: 7ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1059µs, render: 6ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 8ms (compile: 1360µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1025µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 918µs, render: 6ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1326µs, render: 1307µs)
+ GET /api/admin/stats 200 in 3ms (compile: 1579µs, render: 1807µs)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 11ms (compile: 1040µs, render: 10ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 2ms (compile: 893µs, render: 1584µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 976µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1018µs, render: 6ms)
+ GET /api/admin/stats 200 in 2ms (compile: 1027µs, render: 1358µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 8ms (compile: 977µs, render: 7ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 822µs, render: 5ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 12ms (compile: 931µs, render: 11ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 3ms (compile: 1575µs, render: 1669µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 8ms (compile: 1130µs, render: 7ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 882µs, render: 6ms)
+ GET /api/admin/stats 200 in 5ms (compile: 1592µs, render: 3ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 1080µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 954µs, render: 5ms)
+Attempting to connect to MongoDB: mongodb://127.0.0.1:27017/goip_messages?directConnection=true
+Connected to MongoDB successfully
+Connection details: { host: '127.0.0.1', port: 27017, name: 'goip_messages' }
+MongoDB models and indexes initialized successfully
+Get pending withdrawals error: CastError: Cast to ObjectId failed for value "test-device-123" (type string) at path "_id" for model "Device"
+    at async GET (src/app/api/admin/withdrawals/pending/route.ts:40:32)
+  38 |
+  39 |     // Get pending withdrawals from database
+> 40 |     const pendingWithdrawals = await WithdrawalRequest.find({
+     |                                ^
+  41 |       status: WithdrawalStatus.PENDING
+  42 |     })
+  43 |     .sort({ createdAt: -1 }) {
+  stringValue: '"test-device-123"',
+  messageFormat: undefined,
+  kind: 'ObjectId',
+  value: 'test-device-123',
+  path: '_id',
+  reason: BSONError: input must be a 24 character hex string, 12 byte Uint8Array, or an integer
+      at async GET (src/app/api/admin/withdrawals/pending/route.ts:40:32)
+    38 |
+    39 |     // Get pending withdrawals from database
+  > 40 |     const pendingWithdrawals = await WithdrawalRequest.find({
+       |                                ^
+    41 |       status: WithdrawalStatus.PENDING
+    42 |     })
+    43 |     .sort({ createdAt: -1 }),
+  valueType: 'string'
+}
+ GET /api/admin/withdrawals/pending?adminKey=admin-secret-key-2024 500 in 175ms (compile: 34ms, render: 142ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 20ms (compile: 1309µs, render: 19ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Attempting to connect to MongoDB: mongodb://127.0.0.1:27017/goip_messages?directConnection=true
+Connected to MongoDB successfully
+Connection details: { host: '127.0.0.1', port: 27017, name: 'goip_messages' }
+MongoDB models and indexes initialized successfully
+ GET /api/admin/withdrawals/pending?adminKey=admin-secret-key-2024 200 in 48ms (compile: 28ms, render: 19ms)
+ GET /api/admin/stats 200 in 4ms (compile: 1613µs, render: 2ms)
+ POST /api/withdrawals/request 400 in 9ms (compile: 1207µs, render: 8ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 916µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1021µs, render: 6ms)
+ POST /api/withdrawals/request 400 in 2ms (compile: 1010µs, render: 1451µs)
+ GET /api/admin/stats 200 in 3ms (compile: 992µs, render: 1706µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 974µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1010µs, render: 6ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 12ms (compile: 972µs, render: 11ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 3ms (compile: 1258µs, render: 1994µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 941µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 967µs, render: 5ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1139µs, render: 1429µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 914µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1119µs, render: 6ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 11ms (compile: 845µs, render: 10ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 4ms (compile: 1726µs, render: 2ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 1000µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 834µs, render: 5ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1370µs, render: 2ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 6ms (compile: 950µs, render: 5ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 914µs, render: 5ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 12ms (compile: 915µs, render: 11ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 3ms (compile: 1459µs, render: 1513µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 850µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 9ms (compile: 1192µs, render: 7ms)
+ GET /api/admin/stats 200 in 4ms (compile: 1278µs, render: 3ms)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 6ms (compile: 852µs, render: 5ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 904µs, render: 5ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 33% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 13ms (compile: 1175µs, render: 11ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 3ms (compile: 1211µs, render: 1959µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 1165µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 989µs, render: 5ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1344µs, render: 1979µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 971µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 8ms (compile: 1273µs, render: 7ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 34% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 13ms (compile: 1012µs, render: 12ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 2ms (compile: 1006µs, render: 1332µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 6ms (compile: 998µs, render: 5ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 976µs, render: 5ms)
+ GET /api/admin/stats 200 in 3ms (compile: 1298µs, render: 1518µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 6ms (compile: 1085µs, render: 5ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 6ms (compile: 1004µs, render: 5ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 34% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 11ms (compile: 1013µs, render: 10ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 4ms (compile: 1796µs, render: 1972µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 1094µs, render: 5ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1364µs, render: 5ms)
+ GET /admin 200 in 130ms (compile: 64ms, render: 66ms)
+ GET /dashboard 200 in 131ms (compile: 114ms, render: 17ms)
+ GET /dashboard 200 in 21ms (compile: 10ms, render: 10ms)
+ GET /admin 200 in 22ms (compile: 1177µs, render: 21ms)
+ GET /dashboard 200 in 21ms (compile: 3ms, render: 18ms)
+ GET /admin 200 in 21ms (compile: 13ms, render: 9ms)
+ GET /dashboard 200 in 19ms (compile: 2ms, render: 17ms)
+ GET /admin 200 in 10ms (compile: 1016µs, render: 9ms)
+ GET /admin 200 in 17ms (compile: 1189µs, render: 16ms)
+ GET /dashboard 200 in 9ms (compile: 1659µs, render: 7ms)
+ GET /dashboard 200 in 18ms (compile: 2ms, render: 16ms)
+ GET /admin 200 in 18ms (compile: 9ms, render: 10ms)
+ GET /dashboard 200 in 14ms (compile: 1708µs, render: 13ms)
+ GET /admin 200 in 15ms (compile: 8ms, render: 7ms)
+ GET /admin 200 in 16ms (compile: 1072µs, render: 15ms)
+ GET /dashboard 200 in 10ms (compile: 1411µs, render: 8ms)
+ GET /dashboard 200 in 14ms (compile: 1617µs, render: 13ms)
+ GET /admin 200 in 15ms (compile: 8ms, render: 7ms)
+ GET /dashboard 200 in 17ms (compile: 2ms, render: 15ms)
+ GET /admin 200 in 9ms (compile: 837µs, render: 8ms)
+ GET /dashboard 200 in 14ms (compile: 1509µs, render: 13ms)
+ GET /admin 200 in 8ms (compile: 853µs, render: 7ms)
+ GET /dashboard 200 in 15ms (compile: 1861µs, render: 13ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+ GET /dashboard 200 in 17ms (compile: 3ms, render: 14ms)
+ GET /admin 200 in 17ms (compile: 10ms, render: 6ms)
+ GET /dashboard 200 in 20ms (compile: 12ms, render: 8ms)
+ GET /admin 200 in 21ms (compile: 1514µs, render: 19ms)
+ GET /dashboard 200 in 14ms (compile: 2ms, render: 12ms)
+ GET /admin 200 in 14ms (compile: 8ms, render: 6ms)
+ GET /admin 200 in 14ms (compile: 1073µs, render: 13ms)
+ GET /dashboard 200 in 15ms (compile: 7ms, render: 7ms)
+ GET /admin 200 in 20ms (compile: 1638µs, render: 18ms)
+ GET /dashboard 200 in 9ms (compile: 2ms, render: 7ms)
+ GET /dashboard 200 in 22ms (compile: 2ms, render: 19ms)
+ GET /admin 200 in 11ms (compile: 1267µs, render: 10ms)
+ GET /dashboard 200 in 15ms (compile: 2ms, render: 13ms)
+ GET /admin 200 in 7ms (compile: 828µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 2ms, render: 13ms)
+ GET /admin 200 in 8ms (compile: 817µs, render: 7ms)
+ GET /dashboard 200 in 18ms (compile: 2ms, render: 15ms)
+ GET /admin 200 in 7ms (compile: 910µs, render: 6ms)
+ GET /dashboard 200 in 14ms (compile: 1529µs, render: 13ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+ GET /dashboard 200 in 16ms (compile: 2ms, render: 14ms)
+ GET /admin 200 in 7ms (compile: 875µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 1360µs, render: 13ms)
+ GET /admin 200 in 8ms (compile: 781µs, render: 8ms)
+ GET /dashboard 200 in 18ms (compile: 2ms, render: 15ms)
+ GET /admin 200 in 8ms (compile: 1525µs, render: 6ms)
+ GET /dashboard 200 in 18ms (compile: 2ms, render: 15ms)
+ GET /admin 200 in 10ms (compile: 834µs, render: 9ms)
+ GET /admin 200 in 17ms (compile: 1291µs, render: 15ms)
+ GET /dashboard 200 in 9ms (compile: 1762µs, render: 8ms)
+ GET /admin 200 in 14ms (compile: 1213µs, render: 13ms)
+ GET /dashboard 200 in 14ms (compile: 8ms, render: 6ms)
+ GET /admin 200 in 14ms (compile: 1548µs, render: 13ms)
+ GET /dashboard 200 in 7ms (compile: 1289µs, render: 6ms)
+ GET /admin 200 in 16ms (compile: 1523µs, render: 15ms)
+ GET /dashboard 200 in 8ms (compile: 1578µs, render: 6ms)
+ GET /dashboard 200 in 14ms (compile: 2ms, render: 12ms)
+ GET /admin 200 in 14ms (compile: 8ms, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 1694µs, render: 14ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+ GET /dashboard 200 in 14ms (compile: 1597µs, render: 12ms)
+ GET /admin 200 in 7ms (compile: 849µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 1662µs, render: 13ms)
+ GET /admin 200 in 9ms (compile: 967µs, render: 8ms)
+ GET /admin 200 in 14ms (compile: 1615µs, render: 13ms)
+ GET /dashboard 200 in 7ms (compile: 1255µs, render: 5ms)
+ GET /admin 200 in 15ms (compile: 1147µs, render: 14ms)
+ GET /dashboard 200 in 9ms (compile: 1300µs, render: 7ms)
+ GET /admin 200 in 17ms (compile: 1617µs, render: 15ms)
+ GET /dashboard 200 in 17ms (compile: 11ms, render: 5ms)
+ GET /dashboard 200 in 14ms (compile: 1391µs, render: 13ms)
+ GET /admin 200 in 14ms (compile: 7ms, render: 7ms)
+ GET /dashboard 200 in 13ms (compile: 1817µs, render: 11ms)
+ GET /admin 200 in 13ms (compile: 7ms, render: 6ms)
+ GET /dashboard 200 in 14ms (compile: 1427µs, render: 13ms)
+ GET /admin 200 in 8ms (compile: 734µs, render: 7ms)
+ GET /dashboard 200 in 13ms (compile: 1473µs, render: 12ms)
+ GET /admin 200 in 7ms (compile: 767µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 1492µs, render: 13ms)
+ GET /admin 200 in 8ms (compile: 843µs, render: 8ms)
+ GET /dashboard 200 in 17ms (compile: 2ms, render: 15ms)
+ GET /admin 200 in 7ms (compile: 786µs, render: 6ms)
+ GET /admin 200 in 15ms (compile: 1015µs, render: 14ms)
+ GET /dashboard 200 in 9ms (compile: 1418µs, render: 7ms)
+ GET /dashboard 200 in 13ms (compile: 1606µs, render: 12ms)
+ GET /admin 200 in 7ms (compile: 776µs, render: 6ms)
+ GET /dashboard 200 in 16ms (compile: 2ms, render: 14ms)
+ GET /admin 200 in 9ms (compile: 713µs, render: 9ms)
+ GET /dashboard 200 in 16ms (compile: 10ms, render: 6ms)
+ GET /admin 200 in 16ms (compile: 1581µs, render: 15ms)
+ GET /admin 200 in 15ms (compile: 947µs, render: 14ms)
+ GET /dashboard 200 in 9ms (compile: 1376µs, render: 7ms)
+ GET /dashboard 200 in 13ms (compile: 1816µs, render: 12ms)
+ GET /admin 200 in 13ms (compile: 7ms, render: 6ms)
+ GET /dashboard 200 in 16ms (compile: 1463µs, render: 15ms)
+ GET /admin 200 in 10ms (compile: 1271µs, render: 8ms)
+ GET /dashboard 200 in 13ms (compile: 8ms, render: 6ms)
+ GET /admin 200 in 14ms (compile: 1239µs, render: 13ms)
+ GET /dashboard 200 in 15ms (compile: 1478µs, render: 13ms)
+ GET /admin 200 in 8ms (compile: 845µs, render: 8ms)
+ GET /dashboard 200 in 17ms (compile: 2ms, render: 14ms)
+ GET /admin 200 in 7ms (compile: 774µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 1566µs, render: 14ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+ GET /admin 200 in 14ms (compile: 1455µs, render: 13ms)
+ GET /dashboard 200 in 8ms (compile: 1398µs, render: 6ms)
+ GET /dashboard 200 in 18ms (compile: 2ms, render: 16ms)
+ GET /admin 200 in 8ms (compile: 821µs, render: 7ms)
+ GET /dashboard 200 in 13ms (compile: 1644µs, render: 11ms)
+ GET /admin 200 in 13ms (compile: 7ms, render: 6ms)
+ GET /admin 200 in 15ms (compile: 842µs, render: 14ms)
+ GET /dashboard 200 in 9ms (compile: 1429µs, render: 7ms)
+ GET /dashboard 200 in 17ms (compile: 12ms, render: 6ms)
+ GET /admin 200 in 18ms (compile: 4ms, render: 14ms)
+ GET /admin 200 in 15ms (compile: 965µs, render: 14ms)
+ GET /dashboard 200 in 9ms (compile: 1343µs, render: 7ms)
+ GET /admin 200 in 17ms (compile: 1390µs, render: 16ms)
+ GET /dashboard 200 in 7ms (compile: 1320µs, render: 6ms)
+ GET /admin 200 in 15ms (compile: 841µs, render: 14ms)
+ GET /dashboard 200 in 9ms (compile: 1459µs, render: 7ms)
+ GET /dashboard 200 in 13ms (compile: 7ms, render: 6ms)
+ GET /admin 200 in 13ms (compile: 967µs, render: 12ms)
+ GET /dashboard 200 in 19ms (compile: 2ms, render: 17ms)
+ GET /admin 200 in 19ms (compile: 11ms, render: 8ms)
+ GET /dashboard 200 in 15ms (compile: 2ms, render: 12ms)
+ GET /admin 200 in 7ms (compile: 890µs, render: 6ms)
+ GET /dashboard 200 in 14ms (compile: 1710µs, render: 13ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+ GET /dashboard 200 in 14ms (compile: 2ms, render: 12ms)
+ GET /admin 200 in 7ms (compile: 738µs, render: 6ms)
+ GET /dashboard 200 in 16ms (compile: 1639µs, render: 15ms)
+ GET /admin 200 in 10ms (compile: 710µs, render: 9ms)
+ GET /dashboard 200 in 16ms (compile: 2ms, render: 13ms)
+ GET /admin 200 in 7ms (compile: 858µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 1770µs, render: 13ms)
+ GET /admin 200 in 16ms (compile: 7ms, render: 9ms)
+ GET /dashboard 200 in 14ms (compile: 1849µs, render: 13ms)
+ GET /admin 200 in 8ms (compile: 861µs, render: 7ms)
+ GET /admin 200 in 19ms (compile: 1649µs, render: 17ms)
+ GET /dashboard 200 in 9ms (compile: 1393µs, render: 7ms)
+ GET /admin 200 in 14ms (compile: 1248µs, render: 13ms)
+ GET /dashboard 200 in 7ms (compile: 1246µs, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 7ms, render: 7ms)
+ GET /admin 200 in 15ms (compile: 1021µs, render: 14ms)
+ GET /dashboard 200 in 19ms (compile: 2ms, render: 16ms)
+ GET /admin 200 in 18ms (compile: 13ms, render: 6ms)
+ GET /dashboard 200 in 16ms (compile: 2ms, render: 13ms)
+ GET /admin 200 in 16ms (compile: 8ms, render: 8ms)
+ GET /dashboard 200 in 16ms (compile: 3ms, render: 13ms)
+ GET /admin 200 in 16ms (compile: 9ms, render: 6ms)
+ GET /dashboard 200 in 15ms (compile: 2ms, render: 13ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+ GET /admin 200 in 14ms (compile: 1251µs, render: 13ms)
+ GET /dashboard 200 in 7ms (compile: 1333µs, render: 6ms)
+ GET /dashboard 200 in 8ms (compile: 1305µs, render: 7ms)
+ GET /admin 200 in 15ms (compile: 1021µs, render: 14ms)
+ GET /dashboard 200 in 14ms (compile: 9ms, render: 5ms)
+ GET /admin 200 in 15ms (compile: 1582µs, render: 13ms)
+ GET /dashboard 200 in 15ms (compile: 1669µs, render: 13ms)
+ GET /admin 200 in 15ms (compile: 7ms, render: 8ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 20ms (compile: 16ms, render: 4ms)
+Attempting to connect to MongoDB: mongodb://127.0.0.1:27017/goip_messages?directConnection=true
+Connected to MongoDB successfully
+Connection details: { host: '127.0.0.1', port: 27017, name: 'goip_messages' }
+MongoDB models and indexes initialized successfully
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 42ms (compile: 19ms, render: 22ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 17ms (compile: 10ms, render: 8ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 34% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 22ms (compile: 11ms, render: 11ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+ GET /api/admin/stats 200 in 3ms (compile: 1108µs, render: 1696µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 8ms (compile: 1002µs, render: 7ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 930µs, render: 6ms)
+ GET /api/admin/stats 200 in 3ms (compile: 912µs, render: 1791µs)
+ GET /api/transactions/history?deviceId=e1368f4eba7a3535&page=1&limit=20 200 in 7ms (compile: 972µs, render: 6ms)
+ GET /api/withdrawals/history?deviceId=e1368f4eba7a3535&page=1&limit=10 200 in 7ms (compile: 1115µs, render: 6ms)
+Device heartbeat: e1368f4eba7a3535 - Battery: 34% - Brand: samsung SM-A035F
+Heartbeat bulk phone number operations completed: { deviceId: 'e1368f4eba7a3535', matched: 2, upserted: 0, modified: 2 }
+Device e1368f4eba7a3535 SIM info updated: 2 valid SIM slots
+ POST /api/device/heartbeat 200 in 11ms (compile: 916µs, render: 11ms)
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Socket udd28GrXcqKm0IabAAAB joined dashboard room
+Client disconnected: udd28GrXcqKm0IabAAAB
+Client disconnected: gvmb7r2r88CuvPrMAAAE
+[?25h
